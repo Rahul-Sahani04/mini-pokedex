@@ -94,7 +94,9 @@ describe('PokedexPage', () => {
     fixture.detectChanges();
     expect(rows()[0].textContent).toContain('pokemon-11');
 
-    const size = fixture.nativeElement.querySelector('select') as HTMLSelectElement;
+    const size = fixture.nativeElement.querySelector(
+      '.pokedex-page__page-size select',
+    ) as HTMLSelectElement;
     size.value = '25';
     size.dispatchEvent(new Event('change'));
     await fixture.whenStable();
@@ -119,5 +121,42 @@ describe('PokedexPage', () => {
     await fixture.whenStable();
     fixture.detectChanges();
     expect(rows().length).toBe(26);
+  });
+
+  it('debounces name search and filters by type', async () => {
+    const items = [
+      { ...base, id: 1, name: 'bulbasaur' },
+      { ...base, id: 2, name: 'charmander', types: [{ name: 'fire', slot: 1 }] },
+    ];
+    const fixture = TestBed.createComponent(PokedexPage);
+    state$.next({ ...state$.value, loading: false, items });
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const input = fixture.nativeElement.querySelector('input[type="search"]') as HTMLInputElement;
+    const type = fixture.nativeElement.querySelector(
+      '.pokedex-page__filter select',
+    ) as HTMLSelectElement;
+
+    input.value = 'char';
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelectorAll('tbody tr').length).toBe(2);
+
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelectorAll('tbody tr').length).toBe(1);
+    expect(fixture.nativeElement.querySelector('tbody')?.textContent).toContain('charmander');
+
+    type.value = 'fire';
+    type.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelectorAll('tbody tr').length).toBe(1);
+
+    input.value = 'missing';
+    input.dispatchEvent(new Event('input'));
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('No matching Pokémon');
   });
 });

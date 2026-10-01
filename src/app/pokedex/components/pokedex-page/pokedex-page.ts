@@ -1,6 +1,16 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { EMPTY, Subject, catchError, of, startWith, switchMap } from 'rxjs';
+import {
+  EMPTY,
+  Subject,
+  catchError,
+  debounceTime,
+  distinctUntilChanged,
+  map,
+  of,
+  startWith,
+  switchMap,
+} from 'rxjs';
 
 import { PokemonTable } from '../../components/pokemon-table/pokemon-table';
 import { selectPokemonView } from '../../state/pokemon.selectors';
@@ -25,15 +35,36 @@ export class PokedexPage {
   readonly page = signal(1);
   readonly pageSize = signal<number>(PAGE_SIZES[0]);
   readonly sort = signal<PokemonSort | null>(null);
+  readonly searchText = signal('');
+  readonly selectedType = signal<string | null>(null);
   readonly pageSizes = PAGE_SIZES;
   readonly skeletonRows = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
   readonly state = toSignal(this.store.state$, { requireSync: true });
+  readonly types = computed(() =>
+    [
+      ...new Set(this.state().items.flatMap((pokemon) => pokemon.types.map((type) => type.name))),
+    ].sort(),
+  );
+  private readonly searchedState$ = toObservable(this.searchText).pipe(
+    map((text) => text.trim().toLocaleLowerCase()),
+    debounceTime(300),
+    distinctUntilChanged(),
+    startWith(''),
+    switchMap((search) =>
+      this.store.state$.pipe(
+        map((state) => ({
+          ...state,
+          items: state.items.filter((pokemon) => pokemon.name.toLocaleLowerCase().includes(search)),
+        })),
+      ),
+    ),
+  );
   readonly view = toSignal(
     selectPokemonView(
-      this.store.state$,
+      this.searchedState$,
       of(''),
-      of(null),
+      toObservable(this.selectedType),
       toObservable(this.sort),
       toObservable(this.page),
       toObservable(this.pageSize),
@@ -66,6 +97,22 @@ export class PokedexPage {
 
   retry(): void {
     this.loadTrigger$.next(true);
+  }
+
+  changeSearch(event: Event): void {
+    this.searchText.set((event.target as HTMLInputElement).value);
+    this.page.set(1);
+  }
+
+  changeType(event: Event): void {
+    this.selectedType.set((event.target as HTMLSelectElement).value || null);
+    this.page.set(1);
+  }
+
+  clearFilters(): void {
+    this.searchText.set('');
+    this.selectedType.set(null);
+    this.page.set(1);
   }
 
   changeSort(sort: PokemonSort): void {

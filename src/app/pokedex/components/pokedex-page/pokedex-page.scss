@@ -38,6 +38,33 @@
   font-size: 0.875rem;
 }
 
+.pokedex-page__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.pokedex-page__filter {
+  display: grid;
+  gap: 0.35rem;
+  color: var(--color-muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.pokedex-page__filter input,
+.pokedex-page__filter select {
+  min-width: 13rem;
+  min-height: 2.5rem;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+
 .pokedex-page__summary p,
 .pokedex-page__range {
   margin: 0;
@@ -82,6 +109,8 @@
 }
 
 .pokedex-page__button:focus-visible,
+.pokedex-page__filter input:focus-visible,
+.pokedex-page__filter select:focus-visible,
 .pokedex-page__page-size select:focus-visible {
   outline: 0.2rem solid rgb(220 38 38 / 25%);
   outline-offset: 0.15rem;

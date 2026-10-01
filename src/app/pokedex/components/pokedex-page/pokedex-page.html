@@ -2,7 +2,7 @@
   <header class="pokedex-page__header">
     <p class="pokedex-page__eyebrow">Mini Pokédex</p>
     <h1 id="pokedex-page-title" class="pokedex-page__title">Pokémon browser</h1>
-    <p class="pokedex-page__intro">Browse the first batch of Pokémon by name or stats.</p>
+    <p class="pokedex-page__intro">Browse the first batch of Pokémon by name, type, or stats.</p>
   </header>
 
   @if (state().loading) {
@@ -23,12 +23,40 @@
       <p>{{ state().error }}</p>
       <button class="pokedex-page__button" type="button" (click)="retry()">Retry</button>
     </div>
+  } @else if (state().items.length > 0 && view().total === 0) {
+    <div class="pokedex-page__state">
+      <h2 class="pokedex-page__state-title">No matching Pokémon</h2>
+      <p>Try a different name or type filter.</p>
+      <button class="pokedex-page__button" type="button" (click)="clearFilters()">
+        Clear filters
+      </button>
+    </div>
   } @else if (view().total === 0) {
     <div class="pokedex-page__state">
       <h2 class="pokedex-page__state-title">No Pokémon found</h2>
       <p>The loaded batch is empty.</p>
     </div>
   } @else {
+    <div class="pokedex-page__filters" aria-label="Pokémon filters">
+      <label class="pokedex-page__filter">
+        Search by name
+        <input
+          type="search"
+          [value]="searchText()"
+          placeholder="Search Pokémon"
+          (input)="changeSearch($event)"
+        />
+      </label>
+      <label class="pokedex-page__filter">
+        Filter by type
+        <select [value]="selectedType() ?? ''" (change)="changeType($event)">
+          <option value="">All types</option>
+          @for (type of types(); track type) {
+            <option [value]="type">{{ type }}</option>
+          }
+        </select>
+      </label>
+    </div>
     <div class="pokedex-page__summary">
       <p>{{ state().items.length }} Pokémon loaded in this initial batch</p>
     </div>
