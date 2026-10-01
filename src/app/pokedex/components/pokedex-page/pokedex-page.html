@@ -1,5 +1,73 @@
 <section class="pokedex-page" aria-labelledby="pokedex-page-title">
-  <p class="pokedex-page__eyebrow">Mini Pokédex</p>
-  <h1 id="pokedex-page-title" class="pokedex-page__title">Pokémon browser</h1>
-  <p class="pokedex-page__message">The Pokédex experience will be added in the next checkpoint.</p>
+  <header class="pokedex-page__header">
+    <p class="pokedex-page__eyebrow">Mini Pokédex</p>
+    <h1 id="pokedex-page-title" class="pokedex-page__title">Pokémon browser</h1>
+    <p class="pokedex-page__intro">Browse the first batch of Pokémon by name or stats.</p>
+  </header>
+
+  @if (state().loading) {
+    <div class="pokedex-page__table-shell pokedex-page__skeleton" role="status">
+      <span class="pokedex-page__visually-hidden">Loading Pokémon…</span>
+      <div class="pokedex-page__skeleton-row pokedex-page__skeleton-row--header" aria-hidden="true">
+        <span></span><span></span><span></span><span></span>
+      </div>
+      @for (row of skeletonRows; track row) {
+        <div class="pokedex-page__skeleton-row" aria-hidden="true">
+          <span></span><span></span><span></span><span></span>
+        </div>
+      }
+    </div>
+  } @else if (state().error) {
+    <div class="pokedex-page__state" role="alert">
+      <h2 class="pokedex-page__state-title">Couldn’t load Pokémon</h2>
+      <p>{{ state().error }}</p>
+      <button class="pokedex-page__button" type="button" (click)="retry()">Retry</button>
+    </div>
+  } @else if (view().total === 0) {
+    <div class="pokedex-page__state">
+      <h2 class="pokedex-page__state-title">No Pokémon found</h2>
+      <p>The loaded batch is empty.</p>
+    </div>
+  } @else {
+    <div class="pokedex-page__summary">
+      <p>{{ state().items.length }} Pokémon loaded in this initial batch</p>
+    </div>
+
+    <app-pokemon-table [items]="view().items" [sort]="sort()" (sortChange)="changeSort($event)" />
+
+    <nav class="pokedex-page__pagination" aria-label="Pokémon pages">
+      <p class="pokedex-page__range">
+        Showing {{ firstVisibleItem() }}–{{ lastVisibleItem() }} of {{ view().total }} loaded
+      </p>
+
+      <label class="pokedex-page__page-size">
+        Rows per page
+        <select [value]="pageSize()" (change)="changePageSize($event)">
+          @for (size of pageSizes; track size) {
+            <option [value]="size">{{ size }}</option>
+          }
+        </select>
+      </label>
+
+      <div class="pokedex-page__page-controls">
+        <button
+          class="pokedex-page__button pokedex-page__button--secondary"
+          type="button"
+          [disabled]="page() === 1"
+          (click)="goToPage(page() - 1)"
+        >
+          Previous
+        </button>
+        <span aria-live="polite">Page {{ page() }} of {{ pageCount() }}</span>
+        <button
+          class="pokedex-page__button pokedex-page__button--secondary"
+          type="button"
+          [disabled]="page() === pageCount()"
+          (click)="goToPage(page() + 1)"
+        >
+          Next
+        </button>
+      </div>
+    </nav>
+  }
 </section>

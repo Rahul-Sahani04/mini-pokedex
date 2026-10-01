@@ -1,0 +1,86 @@
+<div class="pokemon-table" role="region" aria-label="Pokémon statistics" tabindex="0">
+  <table class="pokemon-table__table">
+    <caption class="pokemon-table__caption">
+      Pokémon names, types, and base statistics
+    </caption>
+    <thead>
+      <tr>
+        <th class="pokemon-table__image-heading" scope="col">Image</th>
+        <th scope="col" [attr.aria-sort]="ariaSort('name')">
+          <button
+            class="pokemon-table__sort"
+            type="button"
+            [attr.aria-label]="sortLabel('name', 'name')"
+            (click)="changeSort('name')"
+          >
+            Name
+            <span class="pokemon-table__sort-indicator" aria-hidden="true">
+              {{ sortIndicator('name') }}
+            </span>
+          </button>
+        </th>
+        <th scope="col">Types</th>
+        @for (column of statColumns; track column.field) {
+          <th class="pokemon-table__number" scope="col" [attr.aria-sort]="ariaSort(column.field)">
+            <button
+              class="pokemon-table__sort pokemon-table__sort--number"
+              type="button"
+              [attr.aria-label]="sortLabel(column.label, column.field)"
+              (click)="changeSort(column.field)"
+            >
+              {{ column.label }}
+              <span class="pokemon-table__sort-indicator" aria-hidden="true">
+                {{ sortIndicator(column.field) }}
+              </span>
+            </button>
+          </th>
+        }
+        <th class="pokemon-table__number" scope="col" [attr.aria-sort]="ariaSort('total')">
+          <button
+            class="pokemon-table__sort pokemon-table__sort--number"
+            type="button"
+            [attr.aria-label]="sortLabel('total', 'total')"
+            (click)="changeSort('total')"
+          >
+            Total
+            <span class="pokemon-table__sort-indicator" aria-hidden="true">
+              {{ sortIndicator('total') }}
+            </span>
+          </button>
+        </th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (pokemon of items(); track pokemon.id) {
+        <tr>
+          <td class="pokemon-table__image-cell">
+            @if (pokemon.sprite.frontDefault ?? pokemon.sprite.officialArtwork; as spriteUrl) {
+              <img
+                class="pokemon-table__image"
+                [src]="spriteUrl"
+                alt=""
+                width="64"
+                height="64"
+                loading="lazy"
+              />
+            }
+          </td>
+          <th class="pokemon-table__name" scope="row">{{ pokemon.name }}</th>
+          <td>
+            <div class="pokemon-table__types">
+              @for (type of pokemon.types; track type.slot) {
+                <span [class]="'pokemon-table__type pokemon-table__type--' + type.name">
+                  {{ type.name }}
+                </span>
+              }
+            </div>
+          </td>
+          @for (column of statColumns; track column.field) {
+            <td class="pokemon-table__number">{{ statValue(pokemon, column.field) }}</td>
+          }
+          <td class="pokemon-table__number pokemon-table__total">{{ total(pokemon) }}</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>

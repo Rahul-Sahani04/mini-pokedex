@@ -76,6 +76,12 @@ function comparePokemon(
     return (left, right) => direction * left.name.localeCompare(right.name);
   }
 
+  if (sort.field === 'total') {
+    const sum = (pokemon: PokemonListItem) =>
+      pokemon.stats.reduce((total, stat) => total + stat.baseStat, 0);
+    return (left, right) => direction * (sum(left) - sum(right));
+  }
+
   return (left, right) => {
     const leftValue = left.stats.find((stat) => stat.name === sort.field)?.baseStat ?? 0;
     const rightValue = right.stats.find((stat) => stat.name === sort.field)?.baseStat ?? 0;

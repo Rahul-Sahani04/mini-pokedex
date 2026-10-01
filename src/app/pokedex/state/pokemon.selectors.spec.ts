@@ -74,6 +74,15 @@ describe('selectPokemonView', () => {
     expect(items.map((pokemon) => pokemon.name)).toEqual(['Charmander', 'Charizard', 'Bulbasaur']);
     type$.next('water');
     expect(results.at(-1)).toEqual({ names: [], total: 0 });
+    type$.next(null);
+    search$.next('');
+    sort$.next({ field: 'total', direction: 'desc' });
+    page$.next(1);
+    pageSize$.next(3);
+    expect(results.at(-1)).toEqual({
+      names: ['Charizard', 'Charmander', 'Bulbasaur'],
+      total: 3,
+    });
     subscription.unsubscribe();
   });
 });

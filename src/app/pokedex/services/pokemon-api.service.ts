@@ -18,7 +18,7 @@ export const POKEAPI_GRAPHQL_URL = 'https://beta.pokeapi.co/graphql/v1beta';
 
 export const GET_POKEMON_QUERY = /* GraphQL */ `
   query GetPokemon($limit: Int, $offset: Int) {
-    pokemon_v2_pokemon(limit: $limit, offset: $offset) {
+    pokemon_v2_pokemon(limit: $limit, offset: $offset, order_by: { id: asc }) {
       id
       name
       height
