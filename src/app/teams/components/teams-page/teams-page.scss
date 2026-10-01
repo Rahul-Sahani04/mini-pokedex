@@ -1,0 +1,21 @@
+.teams-page {
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  padding: 3rem 1.5rem;
+}
+
+.teams-page__eyebrow {
+  margin: 0 0 0.5rem;
+  color: var(--color-primary);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.teams-page__title {
+  margin: 0;
+}
+
+.teams-page__message {
+  color: var(--color-muted);
+}
