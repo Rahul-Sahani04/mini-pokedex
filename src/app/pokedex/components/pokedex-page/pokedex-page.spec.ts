@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { BehaviorSubject, of } from 'rxjs';
+import { BehaviorSubject, Subject, catchError, defer, of, tap, throwError } from 'rxjs';
 
 import type { PokemonListItem } from '../../models';
 import { PokemonStore } from '../../state/pokemon.store';
@@ -45,27 +45,69 @@ describe('PokedexPage', () => {
     });
   });
 
-  it('shows loading, failure with retry, and an empty response', async () => {
+  it('keeps the skeleton visible while pending, then retries a failed request', async () => {
+    const first = new Subject<PokemonListItem[]>();
+    const second = new Subject<PokemonListItem[]>();
+    const requests = [first, second];
+    loadPage$.mockImplementation(() =>
+      defer(() => {
+        state$.next({ ...state$.value, loading: true, error: null });
+        return requests.shift()!.pipe(
+          tap((items) => state$.next({ ...state$.value, items, loading: false, error: null })),
+          catchError((error: unknown) => {
+            state$.next({ ...state$.value, loading: false, error: 'Unable to load Pokémon.' });
+            return throwError(() => error);
+          }),
+        );
+      }),
+    );
     const fixture = TestBed.createComponent(PokedexPage);
-    fixture.detectChanges();
     await fixture.whenStable();
-    expect(fixture.nativeElement.querySelector('[role="status"]')?.textContent).toContain(
-      'Loading Pokémon',
-    );
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('[role="status"]')?.textContent).toContain('Loading Pokémon');
+    expect(
+      root.querySelector('[aria-busy="true"] .pokedex-page__skeleton-row--header'),
+    ).not.toBeNull();
+    expect(
+      root.querySelectorAll('.pokedex-page__skeleton-row:not(.pokedex-page__skeleton-row--header)'),
+    ).toHaveLength(10);
     expect(loadPage$).toHaveBeenCalledWith(150, 0, false);
+    expect(root.querySelector('app-pokemon-table')).toBeNull();
 
-    state$.next({ ...state$.value, loading: false, error: 'Unable to load Pokémon.' });
-    fixture.detectChanges();
-    const retry = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
-    expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain(
-      'Unable to load Pokémon.',
-    );
-    retry.click();
+    first.error(new Error('network failure'));
+    await fixture.whenStable();
+    expect(root.querySelector('[role="alert"]')?.textContent).toContain('Unable to load Pokémon.');
+    expect(root.querySelector('[role="status"]')).toBeNull();
+    (root.querySelector('button') as HTMLButtonElement).click();
+    await fixture.whenStable();
     expect(loadPage$).toHaveBeenCalledWith(150, 0, true);
+    expect(root.querySelector('[role="status"]')?.textContent).toContain('Loading Pokémon');
+    expect(root.querySelector('[role="alert"]')).toBeNull();
 
-    state$.next({ ...state$.value, error: null });
-    fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('The loaded batch is empty.');
+    second.next([base]);
+    second.complete();
+    await fixture.whenStable();
+    expect(root.querySelector('tbody')?.textContent).toContain('bulbasaur');
+    expect(root.querySelector('[role="status"]')).toBeNull();
+  });
+
+  it('explains an empty loaded batch and offers a fresh attempt', async () => {
+    const fixture = TestBed.createComponent(PokedexPage);
+    state$.next({ ...state$.value, loading: false });
+    await fixture.whenStable();
+    expect(fixture.nativeElement.textContent).toContain('No Pokémon were returned for this batch');
+    (fixture.nativeElement.querySelector('button') as HTMLButtonElement).click();
+    expect(loadPage$).toHaveBeenCalledWith(150, 0, true);
+  });
+
+  it('unsubscribes from an unfinished load on destroy', async () => {
+    const pending = new Subject<PokemonListItem[]>();
+    loadPage$.mockReturnValue(pending);
+    const fixture = TestBed.createComponent(PokedexPage);
+    await fixture.whenStable();
+    expect(pending.observed).toBe(true);
+    fixture.destroy();
+    expect(pending.observed).toBe(false);
   });
 
   it('renders, sorts, and paginates the loaded batch', async () => {
@@ -123,7 +165,7 @@ describe('PokedexPage', () => {
     expect(rows().length).toBe(26);
   });
 
-  it('debounces name search and filters by type', async () => {
+  it('keeps filters and input focus through debounce and no-match, then clears both filters', async () => {
     const items = [
       { ...base, id: 1, name: 'bulbasaur' },
       { ...base, id: 2, name: 'charmander', types: [{ name: 'fire', slot: 1 }] },
@@ -138,15 +180,18 @@ describe('PokedexPage', () => {
       '.pokedex-page__filter select',
     ) as HTMLSelectElement;
 
+    input.focus();
     input.value = 'char';
     input.dispatchEvent(new Event('input'));
-    fixture.detectChanges();
+    await fixture.whenStable();
     expect(fixture.nativeElement.querySelectorAll('tbody tr').length).toBe(2);
+    expect(document.activeElement).toBe(input);
 
     await new Promise((resolve) => setTimeout(resolve, 350));
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelectorAll('tbody tr').length).toBe(1);
     expect(fixture.nativeElement.querySelector('tbody')?.textContent).toContain('charmander');
+    expect(document.activeElement).toBe(input);
 
     type.value = 'fire';
     type.dispatchEvent(new Event('change'));
@@ -158,5 +203,22 @@ describe('PokedexPage', () => {
     await new Promise((resolve) => setTimeout(resolve, 350));
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('No matching Pokémon');
+    expect(fixture.nativeElement.querySelector('input[type="search"]')).toBe(input);
+    expect(fixture.nativeElement.querySelector('.pokedex-page__filter select')).toBe(type);
+    expect(input.value).toBe('missing');
+    expect(type.value).toBe('fire');
+    expect(document.activeElement).toBe(input);
+
+    (
+      fixture.nativeElement.querySelector('.pokedex-page__state button') as HTMLButtonElement
+    ).click();
+    await fixture.whenStable();
+    expect(fixture.nativeElement.querySelector('input[type="search"]')).toBe(input);
+    expect(input.value).toBe('');
+    expect(type.value).toBe('');
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelectorAll('tbody tr').length).toBe(2);
+    expect(fixture.nativeElement.textContent).not.toContain('No matching Pokémon');
   });
 });

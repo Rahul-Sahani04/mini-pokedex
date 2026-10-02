@@ -65,8 +65,8 @@ export class PokemonStore {
 
       return this.api.getPokemonList$(limit, offset).pipe(
         tap((items) => {
-          this.pageCache.set(cacheKey, items);
           if (request === this.pageRequest) {
+            this.pageCache.set(cacheKey, items);
             this.updateState({ items, loading: false, error: null });
           }
         }),
@@ -103,8 +103,8 @@ export class PokemonStore {
       this.updateState({ detail: null, detailLoading: true, detailError: null });
       return this.api.getPokemonById$(id).pipe(
         tap((detail) => {
-          this.detailCache.set(id, detail);
           if (request === this.detailRequest) {
+            this.detailCache.set(id, detail);
             this.updateState({ detail, detailLoading: false, detailError: null });
           }
         }),

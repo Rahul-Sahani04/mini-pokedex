@@ -1,6 +1,6 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, catchError, map, retry, throwError } from 'rxjs';
+import { Observable, catchError, map, retry, throwError, timer } from 'rxjs';
 
 import type {
   PokemonAbility,
@@ -122,6 +122,7 @@ export class PokemonApiService {
       'Unable to load Pokémon. Please try again.',
     ).pipe(
       map((data) => data.pokemon_v2_pokemon.map((pokemon) => this.toPokemonListItem(pokemon))),
+      catchError(() => throwError(() => new Error('Unable to load Pokémon. Please try again.'))),
     );
   }
 
@@ -143,6 +144,16 @@ export class PokemonApiService {
 
         return this.toPokemonDetail(data.pokemon_v2_pokemon_by_pk);
       }),
+      catchError((error: unknown) =>
+        throwError(
+          () =>
+            new Error(
+              error instanceof Error && error.message === 'Pokémon was not found.'
+                ? error.message
+                : 'Unable to load Pokémon details. Please try again.',
+            ),
+        ),
+      ),
     );
   }
 
@@ -160,6 +171,9 @@ export class PokemonApiService {
       map((data) =>
         data.pokemon_v2_pokemonability.map((ability) => this.toPokemonAbility(ability)),
       ),
+      catchError(() =>
+        throwError(() => new Error('Unable to load Pokémon abilities. Please try again.')),
+      ),
     );
   }
 
@@ -169,7 +183,17 @@ export class PokemonApiService {
     userMessage: string,
   ): Observable<TData> {
     return this.http.post<GraphqlResponse<TData>>(POKEAPI_GRAPHQL_URL, { query, variables }).pipe(
-      retry({ count: 2, delay: 500 }),
+      retry({
+        count: 2,
+        delay: (error: unknown) =>
+          error instanceof HttpErrorResponse &&
+          (error.status === 0 ||
+            error.status === 408 ||
+            error.status === 429 ||
+            error.status >= 500)
+            ? timer(500)
+            : throwError(() => error),
+      }),
       map((response) => {
         if (response.errors?.length) {
           throw new Error('The Pokémon service returned an error.');

@@ -99,6 +99,47 @@ describe('PokemonStore', () => {
     older.unsubscribe();
   });
 
+  it('does not cache a stale page response over a newer page for the same key', async () => {
+    const olderResponse = new Subject<PokemonListItem[]>();
+    const newerResponse = new Subject<PokemonListItem[]>();
+    vi.mocked(api.getPokemonList$)
+      .mockReturnValueOnce(olderResponse)
+      .mockReturnValueOnce(newerResponse);
+    const older = store.loadPage$(20, 0).subscribe();
+    const newer = store.loadPage$(20, 0, true).subscribe();
+
+    newerResponse.next([pikachu]);
+    newerResponse.complete();
+    olderResponse.next([]);
+    olderResponse.complete();
+
+    expect((await firstValueFrom(store.state$)).items).toEqual([pikachu]);
+    expect(await firstValueFrom(store.loadPage$(20, 0))).toEqual([pikachu]);
+    expect(api.getPokemonList$).toHaveBeenCalledTimes(2);
+    older.unsubscribe();
+    newer.unsubscribe();
+  });
+
+  it('keeps the newer page loading when an older request fails', async () => {
+    const olderResponse = new Subject<PokemonListItem[]>();
+    const newerResponse = new Subject<PokemonListItem[]>();
+    vi.mocked(api.getPokemonList$)
+      .mockReturnValueOnce(olderResponse)
+      .mockReturnValueOnce(newerResponse);
+    const olderError = vi.fn();
+    store.loadPage$(20, 0).subscribe({ error: olderError });
+    const newer = store.loadPage$(20, 20).subscribe();
+
+    olderResponse.error(new Error('private transport detail'));
+    expect(olderError).toHaveBeenCalledOnce();
+    expect(await firstValueFrom(store.state$)).toEqual(
+      expect.objectContaining({ loading: true, error: null }),
+    );
+
+    newer.unsubscribe();
+    expect((await firstValueFrom(store.state$)).loading).toBe(false);
+  });
+
   it('caches a detail by ID', async () => {
     const first = await firstValueFrom(store.loadDetail$(25));
     expect(first).toEqual(
@@ -133,5 +174,38 @@ describe('PokemonStore', () => {
     store.loadDetail$(25).subscribe();
     expect(api.getPokemonById$).toHaveBeenCalledTimes(2);
     subscription.unsubscribe();
+  });
+
+  it('clears detail loading when cancelled and allows a fresh request', async () => {
+    vi.mocked(api.getPokemonById$).mockReturnValueOnce(new Subject<PokemonDetail>());
+    const subscription = store.loadDetail$(25).subscribe();
+    expect((await firstValueFrom(store.state$)).detailLoading).toBe(true);
+
+    subscription.unsubscribe();
+    expect((await firstValueFrom(store.state$)).detailLoading).toBe(false);
+    await firstValueFrom(store.loadDetail$(25));
+    expect(api.getPokemonById$).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not cache a stale detail response over the latest detail for the same ID', async () => {
+    const olderResponse = new Subject<PokemonDetail>();
+    const newerResponse = new Subject<PokemonDetail>();
+    const latestDetail: PokemonDetail = { ...pikachu, abilities: [], baseExperience: 112 };
+    vi.mocked(api.getPokemonById$)
+      .mockReturnValueOnce(olderResponse)
+      .mockReturnValueOnce(newerResponse);
+    const older = store.loadDetail$(25).subscribe();
+    const newer = store.loadDetail$(25).subscribe();
+
+    newerResponse.next(latestDetail);
+    newerResponse.complete();
+    olderResponse.next({ ...latestDetail, baseExperience: 0 });
+    olderResponse.complete();
+
+    expect((await firstValueFrom(store.state$)).detail).toEqual(latestDetail);
+    expect(await firstValueFrom(store.loadDetail$(25))).toEqual(latestDetail);
+    expect(api.getPokemonById$).toHaveBeenCalledTimes(2);
+    older.unsubscribe();
+    newer.unsubscribe();
   });
 });
