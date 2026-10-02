@@ -52,13 +52,7 @@
     </thead>
     <tbody>
       @for (pokemon of items(); track pokemon.id) {
-        <tr
-          tabindex="0"
-          [attr.aria-label]="'View details for ' + pokemon.name"
-          (click)="select(pokemon, $event)"
-          (keydown.enter)="select(pokemon, $event)"
-          (keydown.space)="select(pokemon, $event)"
-        >
+        <tr (click)="select(pokemon, detailsButton)">
           <td class="pokemon-table__image-cell">
             @if (pokemon.sprite.frontDefault ?? pokemon.sprite.officialArtwork; as spriteUrl) {
               <img
@@ -71,7 +65,16 @@
               />
             }
           </td>
-          <th class="pokemon-table__name" scope="row">{{ pokemon.name }}</th>
+          <th class="pokemon-table__name" scope="row">
+            <button
+              #detailsButton
+              class="pokemon-table__details"
+              type="button"
+              [attr.aria-label]="'View details for ' + pokemon.name"
+            >
+              {{ pokemon.name }}
+            </button>
+          </th>
           <td>
             <div class="pokemon-table__types">
               @for (type of pokemon.types; track type.slot) {

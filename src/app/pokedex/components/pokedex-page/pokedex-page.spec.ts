@@ -226,13 +226,16 @@ describe('PokedexPage', () => {
     expect(fixture.nativeElement.textContent).not.toContain('No matching Pokémon');
   });
 
-  it('opens detail on row click, supports keyboard activation, and restores focus on close', async () => {
+  it('opens detail from the named button or row and restores focus to the button', async () => {
     const fixture = TestBed.createComponent(PokedexPage);
     state$.next({ ...state$.value, loading: false, items: [base] });
     await fixture.whenStable();
     const row = fixture.nativeElement.querySelector('tbody tr') as HTMLTableRowElement;
+    const detailsButton = row.querySelector('.pokemon-table__details') as HTMLButtonElement;
+    expect(detailsButton.getAttribute('aria-label')).toBe('View details for bulbasaur');
 
-    row.click();
+    detailsButton.focus();
+    detailsButton.click();
     await fixture.whenStable();
     expect(loadDetail$).toHaveBeenCalledWith(1);
     let panel = fixture.debugElement.query(By.directive(PokemonDetailPanel))
@@ -242,18 +245,16 @@ describe('PokedexPage', () => {
     panel.closed.emit();
     await fixture.whenStable();
     expect(fixture.nativeElement.querySelector('app-pokemon-detail-panel')).toBeNull();
-    expect(document.activeElement).toBe(row);
+    expect(document.activeElement).toBe(detailsButton);
 
-    row.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    row.click();
     await fixture.whenStable();
     expect(loadDetail$).toHaveBeenCalledTimes(2);
     panel = fixture.debugElement.query(By.directive(PokemonDetailPanel))
       .componentInstance as PokemonDetailPanel;
     panel.closed.emit();
     await fixture.whenStable();
-    row.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
-    await fixture.whenStable();
-    expect(loadDetail$).toHaveBeenCalledTimes(3);
+    expect(document.activeElement).toBe(detailsButton);
   });
 
   it('shows loading, cancels superseded details, and ignores the old response', async () => {
@@ -339,6 +340,6 @@ describe('PokedexPage', () => {
     panel.closed.emit();
     await fixture.whenStable();
     expect(second.observed).toBe(false);
-    expect(document.activeElement).toBe(row);
+    expect(document.activeElement).toBe(row.querySelector('.pokemon-table__details'));
   });
 });

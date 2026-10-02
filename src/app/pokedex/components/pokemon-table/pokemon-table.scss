@@ -57,10 +57,21 @@
 
   tbody tr {
     cursor: pointer;
+  }
+
+  &__details {
+    padding: 0.25rem;
+    border: 0;
+    border-radius: 0.25rem;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-transform: inherit;
+    cursor: pointer;
 
     &:focus-visible {
       outline: 3px solid var(--color-primary);
-      outline-offset: -3px;
+      outline-offset: 2px;
     }
   }
 

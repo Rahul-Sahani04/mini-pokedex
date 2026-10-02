@@ -39,7 +39,7 @@ export class PokemonDetailPanel implements OnDestroy {
     afterNextRender(() => {
       const active = this.document.activeElement;
       this.previouslyFocused = active instanceof HTMLElement ? active : null;
-      this.panel()?.nativeElement.focus();
+      this.panel()?.nativeElement.focus({ preventScroll: true });
     });
   }
 

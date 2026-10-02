@@ -32,11 +32,8 @@ export class PokemonTable {
     this.sortChange.emit({ field, direction });
   }
 
-  protected select(pokemon: PokemonListItem, event: Event): void {
-    if (event instanceof KeyboardEvent) {
-      event.preventDefault();
-    }
-    this.selected.emit({ item: pokemon, trigger: event.currentTarget as HTMLElement });
+  protected select(pokemon: PokemonListItem, trigger: HTMLElement): void {
+    this.selected.emit({ item: pokemon, trigger });
   }
 
   protected ariaSort(field: string): 'ascending' | 'descending' | 'none' {
