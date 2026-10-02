@@ -1,5 +1,85 @@
 <section class="teams-page" aria-labelledby="teams-page-title">
-  <p class="teams-page__eyebrow">Team builder</p>
-  <h1 id="teams-page-title" class="teams-page__title">Your teams</h1>
-  <p class="teams-page__message">Team management will be added in the next checkpoint.</p>
+  <header class="teams-page__header">
+    <p class="teams-page__eyebrow">Team builder</p>
+    <h1 id="teams-page-title" class="teams-page__title">Your teams</h1>
+    <p class="teams-page__message">Review your saved teams and their Pokémon counts.</p>
+  </header>
+
+  @if (state().loading) {
+    <p class="teams-page__message" role="status">Loading teams…</p>
+    @if (state().teams.length === 0) {
+      <div class="teams-page__list" aria-hidden="true">
+        @for (card of skeletonCards; track card) {
+          <div class="teams-page__card teams-page__card--skeleton">
+            <span class="teams-page__skeleton-line teams-page__skeleton-line--title"></span>
+            <span class="teams-page__skeleton-line"></span>
+            <span class="teams-page__skeleton-line"></span>
+            <span class="teams-page__skeleton-line"></span>
+          </div>
+        }
+      </div>
+    }
+  }
+
+  @if (loadError(); as error) {
+    <div class="teams-page__state teams-page__state--error" role="alert">
+      <h2 class="teams-page__state-title">Couldn’t load teams</h2>
+      <p>{{ error }}</p>
+      @if (state().teams.length > 0) {
+        <p>Your previously loaded teams are still shown below.</p>
+      }
+      <button class="teams-page__button" type="button" (click)="retry()">Retry</button>
+    </div>
+  }
+
+  @if (state().teams.length > 0) {
+    <p class="teams-page__summary" role="status">
+      {{ state().teams.length }} {{ state().teams.length === 1 ? 'team' : 'teams' }} saved
+    </p>
+    <ul class="teams-page__list" aria-label="Saved teams" [attr.aria-busy]="state().loading">
+      @for (team of state().teams; track team.id) {
+        <li class="teams-page__card">
+          <h2 class="teams-page__team-name">{{ team.name }}</h2>
+          <dl class="teams-page__details">
+            <div class="teams-page__detail">
+              <dt>Trainer ID</dt>
+              <dd>{{ team.trainer_id }}</dd>
+            </div>
+            <div class="teams-page__detail">
+              <dt>Pokémon</dt>
+              <dd>{{ team.pokemon_ids.length }}</dd>
+            </div>
+            <div class="teams-page__detail">
+              <dt>Created</dt>
+              <dd>
+                <time [attr.datetime]="team.created_at">{{
+                  team.created_at | date: 'mediumDate'
+                }}</time>
+              </dd>
+            </div>
+          </dl>
+          @if (deleteErrors()[team.id]; as error) {
+            <p class="teams-page__action-error" role="alert">{{ error }}</p>
+          }
+          <button
+            class="teams-page__button teams-page__button--delete"
+            type="button"
+            [disabled]="state().deletingIds.includes(team.id)"
+            [attr.aria-label]="
+              (state().deletingIds.includes(team.id) ? 'Deleting ' : 'Delete ') + team.name
+            "
+            [attr.aria-busy]="state().deletingIds.includes(team.id)"
+            (click)="deleteTeam(team.id)"
+          >
+            {{ state().deletingIds.includes(team.id) ? 'Deleting…' : 'Delete' }}
+          </button>
+        </li>
+      }
+    </ul>
+  } @else if (!state().loading && !loadError()) {
+    <div class="teams-page__state" role="status">
+      <h2 class="teams-page__state-title">No teams yet</h2>
+      <p>Your saved teams will appear here. A team can contain up to six Pokémon.</p>
+    </div>
+  }
 </section>
