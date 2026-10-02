@@ -1,0 +1,175 @@
+:host {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: block;
+}
+
+.pokemon-detail-panel {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: min(100%, 30rem);
+  overflow-y: auto;
+  background: var(--color-surface);
+  box-shadow: -0.75rem 0 2rem #11182726;
+  animation: panel-enter 220ms ease-out both;
+
+  &:focus-visible {
+    outline: 3px solid var(--color-primary);
+    outline-offset: -3px;
+  }
+
+  &__backdrop {
+    position: absolute;
+    inset: 0;
+    background: #11182799;
+  }
+
+  &__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.5rem;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  &__id {
+    margin: 0 0 0.25rem;
+    color: var(--color-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__title {
+    margin: 0;
+    text-transform: capitalize;
+  }
+
+  &__close {
+    border: 0;
+    background: transparent;
+    color: var(--color-text);
+    font-size: 1.75rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  &__body {
+    padding: 1.5rem;
+  }
+
+  &__state {
+    padding: 1.5rem 0;
+    line-height: 1.5;
+  }
+
+  &__button {
+    padding: 0.65rem 1rem;
+    border: 0;
+    border-radius: 0.5rem;
+    background: var(--color-primary);
+    color: #fff;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  &__close:focus-visible,
+  &__button:focus-visible {
+    outline: 3px solid var(--color-primary);
+    outline-offset: 3px;
+  }
+
+  &__artwork {
+    display: grid;
+    min-height: 15rem;
+    place-items: center;
+    border-radius: 0.75rem;
+    background: var(--color-background);
+
+    img {
+      max-width: 100%;
+      object-fit: contain;
+    }
+  }
+
+  &__types {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 1rem 0;
+  }
+
+  &__type,
+  &__hidden {
+    padding: 0.25rem 0.65rem;
+    border-radius: 999px;
+    background: #e5e7eb;
+    font-size: 0.8rem;
+    text-transform: capitalize;
+  }
+
+  &__section {
+    margin-top: 1.5rem;
+
+    h3 {
+      margin: 0 0 0.75rem;
+    }
+  }
+
+  &__measurements,
+  &__stats {
+    margin: 0;
+
+    div {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    dt {
+      text-transform: capitalize;
+    }
+
+    dd {
+      margin: 0;
+      font-variant-numeric: tabular-nums;
+      font-weight: 700;
+    }
+  }
+
+  &__abilities {
+    display: grid;
+    gap: 1rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+
+    strong {
+      text-transform: capitalize;
+    }
+
+    p {
+      margin: 0.4rem 0 0;
+      color: var(--color-muted);
+      line-height: 1.5;
+    }
+  }
+
+  &__hidden {
+    margin-left: 0.5rem;
+  }
+}
+
+@keyframes panel-enter {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pokemon-detail-panel {
+    animation: none;
+  }
+}

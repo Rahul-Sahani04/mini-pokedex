@@ -52,7 +52,13 @@
     </thead>
     <tbody>
       @for (pokemon of items(); track pokemon.id) {
-        <tr>
+        <tr
+          tabindex="0"
+          [attr.aria-label]="'View details for ' + pokemon.name"
+          (click)="select(pokemon, $event)"
+          (keydown.enter)="select(pokemon, $event)"
+          (keydown.space)="select(pokemon, $event)"
+        >
           <td class="pokemon-table__image-cell">
             @if (pokemon.sprite.frontDefault ?? pokemon.sprite.officialArtwork; as spriteUrl) {
               <img

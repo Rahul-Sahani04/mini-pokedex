@@ -13,6 +13,8 @@ import {
 } from 'rxjs';
 
 import { PokemonTable } from '../../components/pokemon-table/pokemon-table';
+import { PokemonDetailPanel } from '../pokemon-detail-panel/pokemon-detail-panel';
+import type { PokemonListItem } from '../../models';
 import { selectPokemonView } from '../../state/pokemon.selectors';
 import type { PokemonSort } from '../../state/pokemon.selectors';
 import { PokemonStore } from '../../state/pokemon.store';
@@ -23,7 +25,7 @@ const PAGE_SIZES = [10, 25, 50] as const;
 @Component({
   selector: 'app-pokedex-page',
   standalone: true,
-  imports: [PokemonTable],
+  imports: [PokemonTable, PokemonDetailPanel],
   templateUrl: './pokedex-page.html',
   styleUrl: './pokedex-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -31,6 +33,10 @@ const PAGE_SIZES = [10, 25, 50] as const;
 export class PokedexPage {
   private readonly store = inject(PokemonStore);
   private readonly loadTrigger$ = new Subject<boolean>();
+  private readonly detailTrigger$ = new Subject<number | null>();
+  private selectionTrigger: HTMLElement | null = null;
+
+  readonly selectedItem = signal<PokemonListItem | null>(null);
 
   readonly page = signal(1);
   readonly pageSize = signal<number>(PAGE_SIZES[0]);
@@ -93,6 +99,40 @@ export class PokedexPage {
           this.page.set(lastPage);
         }
       });
+
+    this.detailTrigger$
+      .pipe(
+        switchMap((id) =>
+          id === null ? EMPTY : this.store.loadDetail$(id).pipe(catchError(() => EMPTY)),
+        ),
+        takeUntilDestroyed(),
+      )
+      .subscribe();
+  }
+
+  selectPokemon(selection: { item: PokemonListItem; trigger: HTMLElement }): void {
+    this.selectionTrigger = selection.trigger;
+    this.selectedItem.set(selection.item);
+    this.detailTrigger$.next(selection.item.id);
+  }
+
+  retryDetail(): void {
+    const item = this.selectedItem();
+    if (item) {
+      this.detailTrigger$.next(item.id);
+    }
+  }
+
+  closeDetail(): void {
+    this.detailTrigger$.next(null);
+    this.selectedItem.set(null);
+    const trigger = this.selectionTrigger;
+    this.selectionTrigger = null;
+    queueMicrotask(() => {
+      if (trigger?.isConnected) {
+        trigger.focus();
+      }
+    });
   }
 
   retry(): void {

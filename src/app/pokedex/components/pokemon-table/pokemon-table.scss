@@ -55,6 +55,15 @@
     background: #fafafa;
   }
 
+  tbody tr {
+    cursor: pointer;
+
+    &:focus-visible {
+      outline: 3px solid var(--color-primary);
+      outline-offset: -3px;
+    }
+  }
+
   &__image-heading,
   &__image-cell {
     width: 5.5rem;

@@ -63,7 +63,12 @@
         </button>
       </div>
     } @else {
-      <app-pokemon-table [items]="view().items" [sort]="sort()" (sortChange)="changeSort($event)" />
+      <app-pokemon-table
+        [items]="view().items"
+        [sort]="sort()"
+        (sortChange)="changeSort($event)"
+        (selected)="selectPokemon($event)"
+      />
 
       <nav class="pokedex-page__pagination" aria-label="Pokémon pages">
         <p class="pokedex-page__range">
@@ -100,5 +105,16 @@
         </div>
       </nav>
     }
+  }
+
+  @if (selectedItem(); as item) {
+    <app-pokemon-detail-panel
+      [item]="item"
+      [detail]="state().detail"
+      [loading]="state().detailLoading"
+      [error]="state().detailError"
+      (closed)="closeDetail()"
+      (retry)="retryDetail()"
+    />
   }
 </section>

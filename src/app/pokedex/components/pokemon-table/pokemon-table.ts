@@ -14,6 +14,7 @@ export class PokemonTable {
   readonly items = input.required<readonly PokemonListItem[]>();
   readonly sort = input<PokemonSort | null>(null);
   readonly sortChange = output<PokemonSort>();
+  readonly selected = output<{ item: PokemonListItem; trigger: HTMLElement }>();
 
   protected readonly statColumns = [
     { field: 'hp', label: 'HP' },
@@ -29,6 +30,13 @@ export class PokemonTable {
     const direction = current?.field === field && current.direction === 'asc' ? 'desc' : 'asc';
 
     this.sortChange.emit({ field, direction });
+  }
+
+  protected select(pokemon: PokemonListItem, event: Event): void {
+    if (event instanceof KeyboardEvent) {
+      event.preventDefault();
+    }
+    this.selected.emit({ item: pokemon, trigger: event.currentTarget as HTMLElement });
   }
 
   protected ariaSort(field: string): 'ascending' | 'descending' | 'none' {

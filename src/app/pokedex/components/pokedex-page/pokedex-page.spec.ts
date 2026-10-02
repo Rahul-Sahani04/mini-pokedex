@@ -1,9 +1,11 @@
 import { TestBed } from '@angular/core/testing';
-import { BehaviorSubject, Subject, catchError, defer, of, tap, throwError } from 'rxjs';
+import { By } from '@angular/platform-browser';
+import { BehaviorSubject, Subject, catchError, defer, finalize, of, tap, throwError } from 'rxjs';
 
-import type { PokemonListItem } from '../../models';
+import type { PokemonDetail, PokemonListItem } from '../../models';
 import { PokemonStore } from '../../state/pokemon.store';
 import type { PokemonState } from '../../state/pokemon.store';
+import { PokemonDetailPanel } from '../pokemon-detail-panel/pokemon-detail-panel';
 import { PokedexPage } from './pokedex-page';
 
 const base: PokemonListItem = {
@@ -28,6 +30,7 @@ const base: PokemonListItem = {
 describe('PokedexPage', () => {
   let state$: BehaviorSubject<PokemonState>;
   let loadPage$: ReturnType<typeof vi.fn>;
+  let loadDetail$: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     state$ = new BehaviorSubject<PokemonState>({
@@ -39,9 +42,10 @@ describe('PokedexPage', () => {
       detailError: null,
     });
     loadPage$ = vi.fn(() => of([]));
+    loadDetail$ = vi.fn(() => of({ ...base, abilities: [], baseExperience: 64 }));
     TestBed.configureTestingModule({
       imports: [PokedexPage],
-      providers: [{ provide: PokemonStore, useValue: { state$, loadPage$ } }],
+      providers: [{ provide: PokemonStore, useValue: { state$, loadPage$, loadDetail$ } }],
     });
   });
 
@@ -220,5 +224,121 @@ describe('PokedexPage', () => {
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelectorAll('tbody tr').length).toBe(2);
     expect(fixture.nativeElement.textContent).not.toContain('No matching Pokémon');
+  });
+
+  it('opens detail on row click, supports keyboard activation, and restores focus on close', async () => {
+    const fixture = TestBed.createComponent(PokedexPage);
+    state$.next({ ...state$.value, loading: false, items: [base] });
+    await fixture.whenStable();
+    const row = fixture.nativeElement.querySelector('tbody tr') as HTMLTableRowElement;
+
+    row.click();
+    await fixture.whenStable();
+    expect(loadDetail$).toHaveBeenCalledWith(1);
+    let panel = fixture.debugElement.query(By.directive(PokemonDetailPanel))
+      .componentInstance as PokemonDetailPanel;
+    expect(panel.item()).toEqual(base);
+
+    panel.closed.emit();
+    await fixture.whenStable();
+    expect(fixture.nativeElement.querySelector('app-pokemon-detail-panel')).toBeNull();
+    expect(document.activeElement).toBe(row);
+
+    row.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await fixture.whenStable();
+    expect(loadDetail$).toHaveBeenCalledTimes(2);
+    panel = fixture.debugElement.query(By.directive(PokemonDetailPanel))
+      .componentInstance as PokemonDetailPanel;
+    panel.closed.emit();
+    await fixture.whenStable();
+    row.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+    await fixture.whenStable();
+    expect(loadDetail$).toHaveBeenCalledTimes(3);
+  });
+
+  it('shows loading, cancels superseded details, and ignores the old response', async () => {
+    const first = new Subject<PokemonDetail>();
+    const second = new Subject<PokemonDetail>();
+    const requests = [first, second];
+    loadDetail$.mockImplementation(() =>
+      defer(() => {
+        state$.next({ ...state$.value, detail: null, detailLoading: true, detailError: null });
+        return requests.shift()!.pipe(
+          tap((detail) => state$.next({ ...state$.value, detail, detailLoading: false })),
+          finalize(() => state$.next({ ...state$.value, detailLoading: false })),
+        );
+      }),
+    );
+    const other = { ...base, id: 4, name: 'charmander' };
+    const fixture = TestBed.createComponent(PokedexPage);
+    state$.next({ ...state$.value, loading: false, items: [base, other] });
+    await fixture.whenStable();
+    const rows = fixture.nativeElement.querySelectorAll(
+      'tbody tr',
+    ) as NodeListOf<HTMLTableRowElement>;
+
+    rows[0].click();
+    await fixture.whenStable();
+    let panel = fixture.debugElement.query(By.directive(PokemonDetailPanel))
+      .componentInstance as PokemonDetailPanel;
+    expect(panel.loading()).toBe(true);
+    expect(panel.detail()).toBeNull();
+    rows[1].click();
+    await fixture.whenStable();
+    expect(first.observed).toBe(false);
+    expect(second.observed).toBe(true);
+    expect(loadDetail$).toHaveBeenNthCalledWith(2, 4);
+    panel = fixture.debugElement.query(By.directive(PokemonDetailPanel))
+      .componentInstance as PokemonDetailPanel;
+    expect(panel.item().id).toBe(4);
+    second.next({ ...other, abilities: [], baseExperience: 62 });
+    second.complete();
+    await fixture.whenStable();
+    expect(panel.detail()?.id).toBe(4);
+    expect(panel.loading()).toBe(false);
+  });
+
+  it('shows a detail failure, retries the selected id, and cancels on close', async () => {
+    const first = new Subject<PokemonDetail>();
+    const second = new Subject<PokemonDetail>();
+    const requests = [first, second];
+    loadDetail$.mockImplementation(() =>
+      defer(() => {
+        state$.next({ ...state$.value, detail: null, detailLoading: true, detailError: null });
+        return requests.shift()!.pipe(
+          tap((detail) => state$.next({ ...state$.value, detail, detailLoading: false })),
+          catchError((error: unknown) => {
+            state$.next({
+              ...state$.value,
+              detailLoading: false,
+              detailError: 'Unable to load details.',
+            });
+            return throwError(() => error);
+          }),
+        );
+      }),
+    );
+    const fixture = TestBed.createComponent(PokedexPage);
+    state$.next({ ...state$.value, loading: false, items: [base] });
+    await fixture.whenStable();
+    const row = fixture.nativeElement.querySelector('tbody tr') as HTMLTableRowElement;
+    row.click();
+    await fixture.whenStable();
+    first.error(new Error('network'));
+    await fixture.whenStable();
+    const panel = fixture.debugElement.query(By.directive(PokemonDetailPanel))
+      .componentInstance as PokemonDetailPanel;
+    expect(panel.error()).toBe('Unable to load details.');
+    expect(panel.loading()).toBe(false);
+
+    panel.retry.emit();
+    await fixture.whenStable();
+    expect(loadDetail$).toHaveBeenNthCalledWith(2, 1);
+    expect(panel.loading()).toBe(true);
+    expect(panel.error()).toBeNull();
+    panel.closed.emit();
+    await fixture.whenStable();
+    expect(second.observed).toBe(false);
+    expect(document.activeElement).toBe(row);
   });
 });
