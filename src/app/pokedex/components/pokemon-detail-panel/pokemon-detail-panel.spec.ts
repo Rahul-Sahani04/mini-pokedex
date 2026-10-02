@@ -1,7 +1,15 @@
+import { Component, input } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 
-import type { PokemonDetail, PokemonListItem } from '../../models';
+import type { PokemonDetail, PokemonListItem, PokemonStat } from '../../models';
+import { PokemonStatsChart } from '../pokemon-stats-chart/pokemon-stats-chart';
 import { PokemonDetailPanel } from './pokemon-detail-panel';
+
+@Component({ selector: 'app-pokemon-stats-chart', template: '' })
+class PokemonStatsChartStub {
+  readonly stats = input.required<readonly PokemonStat[]>();
+}
 
 const item: PokemonListItem = {
   id: 1,
@@ -21,6 +29,14 @@ const item: PokemonListItem = {
 
 const detail: PokemonDetail = {
   ...item,
+  stats: [
+    { name: 'hp', baseStat: 45, effort: 0 },
+    { name: 'attack', baseStat: 49, effort: 0 },
+    { name: 'defense', baseStat: 49, effort: 0 },
+    { name: 'special-attack', baseStat: 65, effort: 1 },
+    { name: 'special-defense', baseStat: 65, effort: 0 },
+    { name: 'speed', baseStat: 45, effort: 0 },
+  ],
   baseExperience: 64,
   abilities: [
     { name: 'overgrow', isHidden: false, shortEffect: 'Boosts Grass moves.', slot: 1 },
@@ -29,7 +45,13 @@ const detail: PokemonDetail = {
 };
 
 describe('PokemonDetailPanel', () => {
-  beforeEach(() => TestBed.configureTestingModule({ imports: [PokemonDetailPanel] }));
+  beforeEach(() => {
+    TestBed.configureTestingModule({ imports: [PokemonDetailPanel] });
+    TestBed.overrideComponent(PokemonDetailPanel, {
+      remove: { imports: [PokemonStatsChart] },
+      add: { imports: [PokemonStatsChartStub] },
+    });
+  });
 
   async function createPanel() {
     const fixture = TestBed.createComponent(PokemonDetailPanel);
@@ -84,6 +106,7 @@ describe('PokemonDetailPanel', () => {
     expect(root.querySelector('[role="status"]')?.textContent).toContain(
       'No details available for this Pokémon.',
     );
+    expect(root.querySelector('app-pokemon-stats-chart')).toBeNull();
     (root.querySelector('.pokemon-detail-panel__button') as HTMLButtonElement).click();
     expect(retried).toHaveBeenCalledOnce();
     fixture.destroy();
@@ -106,6 +129,66 @@ describe('PokemonDetailPanel', () => {
     expect(root.textContent).toContain('chlorophyll');
     expect(root.textContent).toContain('Hidden');
     expect(root.textContent).toContain('Effect description unavailable.');
+    const chart = fixture.debugElement.query(By.directive(PokemonStatsChartStub))
+      .componentInstance as PokemonStatsChartStub;
+    expect(chart.stats()).toBe(detail.stats);
+    expect(chart.stats()).toHaveLength(6);
+    expect(root.querySelectorAll('.pokemon-detail-panel__stats dt')).toHaveLength(6);
+    fixture.destroy();
+  });
+
+  it.each([
+    ['loading', true],
+    ['error', 'Please try again.'],
+  ])('removes the chart when %s replaces a successful detail', async (inputName, value) => {
+    const fixture = await createPanel();
+    fixture.componentRef.setInput('detail', detail);
+    await fixture.whenStable();
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('app-pokemon-stats-chart')).not.toBeNull();
+
+    fixture.componentRef.setInput(inputName, value);
+    await fixture.whenStable();
+
+    expect(root.querySelector('app-pokemon-stats-chart')).toBeNull();
+    expect(root.querySelector('.pokemon-detail-panel__stats')).toBeNull();
+    fixture.destroy();
+  });
+
+  it('updates the existing chart when the panel receives another Pokémon', async () => {
+    const fixture = await createPanel();
+    fixture.componentRef.setInput('detail', detail);
+    await fixture.whenStable();
+    const chart = fixture.debugElement.query(By.directive(PokemonStatsChartStub))
+      .componentInstance as PokemonStatsChartStub;
+    const nextDetail: PokemonDetail = {
+      ...detail,
+      id: 4,
+      name: 'charmander',
+      stats: [39, 52, 43, 60, 50, 65].map((baseStat, index) => ({
+        ...detail.stats[index],
+        baseStat,
+      })),
+    };
+
+    fixture.componentRef.setInput('item', nextDetail);
+    fixture.componentRef.setInput('detail', nextDetail);
+    await fixture.whenStable();
+
+    expect(fixture.debugElement.query(By.directive(PokemonStatsChartStub)).componentInstance).toBe(
+      chart,
+    );
+    expect(chart.stats()).toBe(nextDetail.stats);
+    expect(chart.stats().map((stat) => stat.baseStat)).toEqual([39, 52, 43, 60, 50, 65]);
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('[role="dialog"]')?.getAttribute('aria-label')).toBe(
+      'Details for charmander',
+    );
+    expect(
+      Array.from(root.querySelectorAll('.pokemon-detail-panel__stats dd'), (stat) =>
+        stat.textContent?.trim(),
+      ),
+    ).toEqual(['39', '52', '43', '60', '50', '65']);
     fixture.destroy();
   });
 

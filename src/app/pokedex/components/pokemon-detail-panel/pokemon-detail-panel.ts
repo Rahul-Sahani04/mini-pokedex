@@ -11,11 +11,12 @@ import {
   viewChild,
 } from '@angular/core';
 import type { PokemonDetail, PokemonListItem } from '../../models';
+import { PokemonStatsChart } from '../pokemon-stats-chart/pokemon-stats-chart';
 
 @Component({
   selector: 'app-pokemon-detail-panel',
   standalone: true,
-  imports: [DecimalPipe],
+  imports: [DecimalPipe, PokemonStatsChart],
   templateUrl: './pokemon-detail-panel.html',
   styleUrl: './pokemon-detail-panel.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

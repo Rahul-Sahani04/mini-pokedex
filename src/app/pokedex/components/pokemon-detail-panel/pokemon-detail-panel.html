@@ -67,6 +67,7 @@
 
       <section class="pokemon-detail-panel__section" aria-labelledby="pokemon-detail-stats">
         <h3 id="pokemon-detail-stats">Base stats</h3>
+        <app-pokemon-stats-chart [stats]="pokemon.stats" />
         <dl class="pokemon-detail-panel__stats">
           @for (stat of pokemon.stats; track stat.name) {
             <div>

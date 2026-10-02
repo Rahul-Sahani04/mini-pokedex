@@ -33,6 +33,7 @@ describe('PokedexPage', () => {
   let loadDetail$: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
     state$ = new BehaviorSubject<PokemonState>({
       items: [],
       loading: true,
@@ -48,6 +49,8 @@ describe('PokedexPage', () => {
       providers: [{ provide: PokemonStore, useValue: { state$, loadPage$, loadDetail$ } }],
     });
   });
+
+  afterEach(() => vi.restoreAllMocks());
 
   it('keeps the skeleton visible while pending, then retries a failed request', async () => {
     const first = new Subject<PokemonListItem[]>();
