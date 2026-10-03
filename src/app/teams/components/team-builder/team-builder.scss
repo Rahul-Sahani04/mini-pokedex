@@ -1,0 +1,142 @@
+:host {
+  display: block;
+}
+
+.team-builder {
+  padding: 1.5rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  background: var(--color-surface);
+
+  h2 {
+    margin: 0;
+  }
+
+  input,
+  button {
+    min-height: 2.75rem;
+    padding: 0.625rem 1rem;
+    border: 1px solid #9ca3af;
+    border-radius: 0.5rem;
+    background: var(--color-surface);
+    color: var(--color-text);
+    font: inherit;
+
+    &:focus-visible {
+      outline: 3px solid var(--color-text);
+      outline-offset: 3px;
+    }
+
+    &:disabled {
+      opacity: 0.6;
+    }
+  }
+
+  button {
+    cursor: pointer;
+
+    &:disabled {
+      cursor: not-allowed;
+    }
+  }
+
+  input {
+    width: 100%;
+    min-width: 0;
+
+    &[aria-invalid='true'] {
+      border-color: var(--color-primary);
+    }
+  }
+}
+
+.team-builder__fields {
+  min-width: 0;
+  margin: 1.5rem 0;
+  padding: 0;
+  border: 0;
+}
+
+.team-builder__field + .team-builder__field {
+  margin-top: 1.5rem;
+}
+
+.team-builder__field label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.team-builder__hint {
+  margin: 0.5rem 0;
+  color: var(--color-muted);
+  font-size: 0.875rem;
+}
+
+.team-builder__error {
+  color: #b91c1c;
+}
+
+.team-builder__results {
+  min-height: 5rem;
+  max-height: 15rem;
+  margin-top: 1rem;
+  padding: 0.75rem;
+  overflow-y: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+}
+
+.team-builder__suggestions,
+.team-builder__chips {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.team-builder__suggestions button {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.25rem;
+  text-align: left;
+}
+
+.team-builder__pokemon-name {
+  text-transform: capitalize;
+  overflow-wrap: anywhere;
+}
+
+.team-builder__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.team-builder__chip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-left: 0.75rem;
+  border-radius: 0.5rem;
+  background: var(--color-background);
+}
+
+.team-builder .team-builder__submit {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 600;
+}
+
+.team-builder__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

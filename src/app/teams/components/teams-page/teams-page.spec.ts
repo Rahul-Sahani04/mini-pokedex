@@ -1,10 +1,24 @@
+import { Component, input, output } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { BehaviorSubject, Subject, defer, of, tap, throwError } from 'rxjs';
+import { By } from '@angular/platform-browser';
+import { BehaviorSubject, Subject, defer, finalize, of, tap, throwError } from 'rxjs';
 
+import type { PokemonListItem } from '../../../pokedex/models';
+import { PokemonStore } from '../../../pokedex/state/pokemon.store';
+import type { PokemonState } from '../../../pokedex/state/pokemon.store';
 import type { Team } from '../../models';
 import { TeamStore } from '../../state/team.store';
 import type { TeamState } from '../../state/team.store';
+import { TeamBuilder } from '../team-builder/team-builder';
 import { TeamsPage } from './teams-page';
+
+@Component({ selector: 'app-team-builder', template: '' })
+class TeamBuilderStub {
+  readonly items = input.required<readonly PokemonListItem[]>();
+  readonly pokemonLoading = input(false);
+  readonly pokemonError = input<string | null>(null);
+  readonly pokemonRetry = output<void>();
+}
 
 const team: Team = {
   id: '1',
@@ -18,6 +32,8 @@ describe('TeamsPage', () => {
   let state$: BehaviorSubject<TeamState>;
   let loadTeams$: ReturnType<typeof vi.fn>;
   let deleteTeam$: ReturnType<typeof vi.fn>;
+  let pokemonState$: BehaviorSubject<PokemonState>;
+  let loadPage$: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     state$ = new BehaviorSubject<TeamState>({
@@ -29,9 +45,25 @@ describe('TeamsPage', () => {
     });
     loadTeams$ = vi.fn(() => of([]));
     deleteTeam$ = vi.fn(() => of(team));
+    pokemonState$ = new BehaviorSubject<PokemonState>({
+      items: [],
+      loading: false,
+      error: null,
+      detail: null,
+      detailLoading: false,
+      detailError: null,
+    });
+    loadPage$ = vi.fn(() => of([]));
     TestBed.configureTestingModule({
       imports: [TeamsPage],
-      providers: [{ provide: TeamStore, useValue: { state$, loadTeams$, deleteTeam$ } }],
+      providers: [
+        { provide: TeamStore, useValue: { state$, loadTeams$, deleteTeam$ } },
+        { provide: PokemonStore, useValue: { state$: pokemonState$, loadPage$ } },
+      ],
+    });
+    TestBed.overrideComponent(TeamsPage, {
+      remove: { imports: [TeamBuilder] },
+      add: { imports: [TeamBuilderStub] },
     });
   });
 
@@ -48,6 +80,7 @@ describe('TeamsPage', () => {
     const root = fixture.nativeElement as HTMLElement;
     expect(root.querySelector('[role="status"]')?.textContent).toContain('Loading teams');
     expect(root.querySelectorAll('.teams-page__card--skeleton')).toHaveLength(3);
+    expect(root.querySelector('app-team-builder')).not.toBeNull();
 
     state$.next({
       ...state$.value,
@@ -57,6 +90,7 @@ describe('TeamsPage', () => {
     first.error(new Error('offline'));
     await fixture.whenStable();
     expect(root.querySelector('[role="alert"]')?.textContent).toContain('Couldn’t load teams');
+    expect(root.querySelector('app-team-builder')).not.toBeNull();
     loadTeams$.mockImplementationOnce(() =>
       defer(() => {
         state$.next({ ...state$.value, loading: true, error: null });
@@ -77,6 +111,72 @@ describe('TeamsPage', () => {
     await fixture.whenStable();
     expect(fixture.nativeElement.textContent).toContain('No teams yet');
     expect(fixture.nativeElement.querySelector('.teams-page__card')).toBeNull();
+  });
+
+  it('loads picker Pokémon independently and forwards loading, errors, and forced retries', async () => {
+    const pending = new Subject<PokemonListItem[]>();
+    loadPage$.mockImplementationOnce(() =>
+      defer(() => {
+        pokemonState$.next({ ...pokemonState$.value, loading: true });
+        return pending;
+      }),
+    );
+    const fixture = TestBed.createComponent(TeamsPage);
+    await fixture.whenStable();
+    const builder = fixture.debugElement.query(By.directive(TeamBuilderStub))
+      .componentInstance as TeamBuilderStub;
+    expect(loadPage$).toHaveBeenCalledExactlyOnceWith(150, 0);
+    expect(builder.pokemonLoading()).toBe(true);
+    expect(fixture.nativeElement.textContent).toContain('No teams yet');
+
+    pokemonState$.next({
+      ...pokemonState$.value,
+      loading: false,
+      error: 'Unable to load Pokémon.',
+    });
+    pending.error(new Error('offline'));
+    await fixture.whenStable();
+    expect(builder.pokemonError()).toBe('Unable to load Pokémon.');
+    expect(builder.pokemonLoading()).toBe(false);
+
+    const items: PokemonListItem[] = [
+      {
+        id: 25,
+        name: 'pikachu',
+        height: 4,
+        weight: 60,
+        stats: [],
+        types: [],
+        sprite: {
+          backDefault: null,
+          backShiny: null,
+          frontDefault: null,
+          frontShiny: null,
+          officialArtwork: null,
+        },
+      },
+    ];
+    loadPage$.mockImplementationOnce(() =>
+      defer(() => {
+        pokemonState$.next({ ...pokemonState$.value, items, loading: false, error: null });
+        return of(items);
+      }),
+    );
+    builder.pokemonRetry.emit();
+    await fixture.whenStable();
+    expect(loadPage$).toHaveBeenLastCalledWith(150, 0, true);
+    expect(loadPage$).toHaveBeenCalledTimes(2);
+    expect(loadTeams$).toHaveBeenCalledTimes(1);
+    expect(builder.items()).toEqual(items);
+    expect(builder.pokemonError()).toBeNull();
+  });
+
+  it('cancels an in-flight picker load when leaving the page', () => {
+    const cancelled = vi.fn();
+    loadPage$.mockReturnValueOnce(new Subject<PokemonListItem[]>().pipe(finalize(cancelled)));
+    const fixture = TestBed.createComponent(TeamsPage);
+    fixture.destroy();
+    expect(cancelled).toHaveBeenCalledOnce();
   });
 
   it('keeps a team visible while deletion is pending, then removes it on success', async () => {

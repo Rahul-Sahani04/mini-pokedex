@@ -2,8 +2,18 @@
   <header class="teams-page__header">
     <p class="teams-page__eyebrow">Team builder</p>
     <h1 id="teams-page-title" class="teams-page__title">Your teams</h1>
-    <p class="teams-page__message">Review your saved teams and their Pokémon counts.</p>
+    <p class="teams-page__message">
+      Build a team and review your saved teams and their Pokémon counts.
+    </p>
   </header>
+
+  <app-team-builder
+    class="teams-page__builder"
+    [items]="pokemonState().items"
+    [pokemonLoading]="pokemonState().loading"
+    [pokemonError]="pokemonState().error"
+    (pokemonRetry)="retryPokemon()"
+  />
 
   @if (state().loading) {
     <p class="teams-page__message" role="status">Loading teams…</p>

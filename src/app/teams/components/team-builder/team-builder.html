@@ -1,0 +1,121 @@
+<section class="team-builder" [attr.aria-labelledby]="id + '-title'">
+  <h2 [id]="id + '-title'">Build a team</h2>
+  <p class="team-builder__hint">Name your team and choose 1–6 Pokémon from the first 150.</p>
+
+  <form [formGroup]="form" (ngSubmit)="submit()" [attr.aria-busy]="submitting()">
+    <fieldset class="team-builder__fields" [disabled]="submitting()">
+      <legend class="team-builder__sr-only">Team details</legend>
+      <div class="team-builder__field">
+        <label [for]="id + '-name'">Team name</label>
+        <input
+          [id]="id + '-name'"
+          type="text"
+          formControlName="name"
+          autocomplete="off"
+          required
+          [attr.aria-invalid]="nameError() ? 'true' : null"
+          [attr.aria-describedby]="
+            id + '-name-hint' + (nameError() ? ' ' + id + '-name-error' : '')
+          "
+        />
+        <p class="team-builder__hint" [id]="id + '-name-hint'">
+          3–30 characters, excluding outer spaces.
+        </p>
+        @if (nameError(); as error) {
+          <p class="team-builder__error" [id]="id + '-name-error'">{{ error }}</p>
+        }
+      </div>
+
+      <div class="team-builder__field">
+        <label [for]="id + '-pokemon'">Find Pokémon</label>
+        <input
+          [id]="id + '-pokemon'"
+          type="search"
+          formControlName="pokemon"
+          autocomplete="off"
+          placeholder="Search by name"
+          [attr.aria-controls]="id + '-suggestions'"
+          [attr.aria-invalid]="selectionError() ? 'true' : null"
+          [attr.aria-describedby]="
+            id + '-picker-hint' + (selectionError() ? ' ' + id + '-selection-error' : '')
+          "
+          (blur)="form.controls.selected.markAsTouched()"
+        />
+        <p class="team-builder__hint" [id]="id + '-picker-hint'">
+          Type a name, then Tab to an Add button to choose a Pokémon.
+        </p>
+
+        <div class="team-builder__results" [attr.aria-busy]="pokemonLoading()">
+          @if (pokemonLoading()) {
+            <p role="status">Loading Pokémon…</p>
+          } @else if (pokemonError()) {
+            <div role="alert">
+              <p>Couldn’t load Pokémon. Please try again.</p>
+              <button type="button" (click)="pokemonRetry.emit()">Retry Pokémon</button>
+            </div>
+          } @else if (search()) {
+            <ul
+              [id]="id + '-suggestions'"
+              class="team-builder__suggestions"
+              aria-label="Pokémon suggestions"
+            >
+              @for (pokemon of suggestions(); track pokemon.id) {
+                <li>
+                  <button
+                    type="button"
+                    [disabled]="selected().length >= 6"
+                    [attr.aria-label]="'Add ' + pokemon.name"
+                    (click)="addPokemon(pokemon)"
+                  >
+                    <span class="team-builder__pokemon-name">{{ pokemon.name }}</span>
+                    <span class="team-builder__hint">#{{ pokemon.id }} · Add</span>
+                  </button>
+                </li>
+              } @empty {
+                <li role="status">
+                  No matching Pokémon. Try another name or remove a selected Pokémon.
+                </li>
+              }
+            </ul>
+          } @else {
+            <p class="team-builder__hint">Search to find Pokémon in the first 150.</p>
+          }
+        </div>
+
+        <p class="team-builder__hint" role="status">
+          {{ selected().length }} / 6 selected
+          @if (selected().length === 6) {
+            — Team full. Remove a Pokémon before adding another.
+          }
+        </p>
+        <ul class="team-builder__chips" aria-label="Selected Pokémon">
+          @for (pokemon of selected(); track pokemon.id) {
+            <li class="team-builder__chip">
+              <span class="team-builder__pokemon-name">{{ pokemon.name }}</span>
+              <button
+                type="button"
+                [attr.aria-label]="'Remove ' + pokemon.name"
+                (click)="removePokemon(pokemon.id)"
+              >
+                ×
+              </button>
+            </li>
+          }
+        </ul>
+        @if (selectionError(); as error) {
+          <p class="team-builder__error" [id]="id + '-selection-error'">{{ error }}</p>
+        }
+      </div>
+    </fieldset>
+
+    @if (submitError(); as error) {
+      <p class="team-builder__error" role="alert">{{ error }}</p>
+    }
+    @if (submitSuccess()) {
+      <p role="status">Team created successfully.</p>
+    }
+    <button class="team-builder__submit" type="submit" [disabled]="submitting()">
+      {{ submitting() ? 'Creating team…' : submitError() ? 'Try again' : 'Create team' }}
+    </button>
+  </form>
+</section>
