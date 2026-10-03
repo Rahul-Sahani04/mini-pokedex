@@ -233,6 +233,7 @@ export class TeamBuilder {
       return;
     }
     if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp' && event.key !== 'Enter') return;
+    if (event.key === 'Enter' && this.suggestionsOpen()) event.preventDefault();
     if (event.key !== 'Enter') this.suggestionsDismissed.set(false);
     const suggestions = this.suggestions();
     if (!this.suggestionsOpen() || !suggestions.length || this.selected().length >= 6) return;
@@ -240,7 +241,6 @@ export class TeamBuilder {
     const active = this.activeSuggestion();
     if (event.key === 'Enter') {
       if (active >= 0) {
-        event.preventDefault();
         this.addPokemon(suggestions[active]);
         this.activeSuggestion.set(-1);
       }

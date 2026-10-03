@@ -377,6 +377,30 @@ describe('TeamBuilder', () => {
     expect(picker.getAttribute('aria-activedescendant')).toBe(`${component.id}-option-1`);
   });
 
+  it('prevents form submission when Enter is pressed with no active suggestion', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
+    input('name', 'Johto');
+    component.addPokemon(items[2]);
+    input('pokemon', 'a');
+    await vi.advanceTimersByTimeAsync(300);
+    await fixture.whenStable();
+
+    const picker = root.querySelector('[role="combobox"]') as HTMLInputElement;
+    expect(component.form.valid).toBe(true);
+    expect(picker.getAttribute('aria-expanded')).toBe('true');
+    expect(picker.getAttribute('aria-activedescendant')).toBeNull();
+    const submit = vi.spyOn(component, 'submit');
+    const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+
+    picker.dispatchEvent(enter);
+    await fixture.whenStable();
+
+    expect(enter.defaultPrevented).toBe(true);
+    expect(submit).not.toHaveBeenCalled();
+    expect(createTeam$).not.toHaveBeenCalled();
+    expect(component.selected()).toEqual([items[2]]);
+  });
+
   it('clears the active suggestion as queries, results, or availability change', async () => {
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
     input('pokemon', 'a');
