@@ -46,14 +46,14 @@ describe('TeamStore', () => {
     expect(await current()).toEqual(
       expect.objectContaining({
         loading: false,
-        error: 'Unable to load teams. Please try again.',
+        loadError: 'Unable to load teams. Please try again.',
         teams: [],
       }),
     );
     subscription.unsubscribe();
     await firstValueFrom(store.loadTeams$());
     expect(await current()).toEqual(
-      expect.objectContaining({ loading: false, error: null, teams: [team] }),
+      expect.objectContaining({ loading: false, loadError: null, teams: [team] }),
     );
     expect(api.getTeams$).toHaveBeenCalledTimes(2);
   });
@@ -73,7 +73,7 @@ describe('TeamStore', () => {
     pending.next(saved);
     pending.complete();
     expect(await current()).toEqual(
-      expect.objectContaining({ teams: [saved], creating: false, error: null }),
+      expect.objectContaining({ teams: [saved], creating: false, mutationError: null }),
     );
     subscription.unsubscribe();
   });
@@ -92,7 +92,8 @@ describe('TeamStore', () => {
     expect(await current()).toEqual(
       expect.objectContaining({
         creating: true,
-        error: errors[0],
+        loadError: null,
+        mutationError: errors[0],
         teams: [expect.objectContaining({ id: ids[1], name: 'Second Team' })],
       }),
     );
@@ -140,11 +141,11 @@ describe('TeamStore', () => {
     store.deleteTeam$(team.id).subscribe({ error: (error: Error) => errors.push(error.message) });
     expect(errors).toEqual(['Unable to delete team. Please try again.']);
     expect(await current()).toEqual(
-      expect.objectContaining({ teams: [team], deletingIds: [], error: errors[0] }),
+      expect.objectContaining({ teams: [team], deletingIds: [], mutationError: errors[0] }),
     );
     await firstValueFrom(store.deleteTeam$(team.id));
     expect(await current()).toEqual(
-      expect.objectContaining({ teams: [], deletingIds: [], error: null }),
+      expect.objectContaining({ teams: [], deletingIds: [], mutationError: null }),
     );
   });
 });

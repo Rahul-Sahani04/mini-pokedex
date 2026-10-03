@@ -455,11 +455,11 @@ describe('TeamBuilder', () => {
     expect(component.submitting()).toBe(false);
     expect(createTeam$).toHaveBeenCalledOnce();
 
-    // Store errors block uniqueness checks until the list has been recovered.
-    component.reloadTeams();
     await new Promise((resolve) => setTimeout(resolve, 350));
     await fixture.whenStable();
-    (root.querySelector('[type="submit"]') as HTMLButtonElement).click();
+    const submit = root.querySelector('[type="submit"]') as HTMLButtonElement;
+    expect(submit.disabled).toBe(false);
+    submit.click();
     await fixture.whenStable();
     expect(createTeam$).toHaveBeenCalledTimes(2);
     expect(root.querySelector('[role="alert"]')).toBeNull();

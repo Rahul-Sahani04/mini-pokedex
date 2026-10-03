@@ -131,7 +131,7 @@ export class TeamBuilder {
   readonly teamNamesStatus = computed(() => {
     const state = this.teamState();
     if (state.loading) return 'Loading existing team names…';
-    if (state.error) return 'Couldn’t verify existing team names. Reload teams to continue.';
+    if (state.loadError) return 'Couldn’t verify existing team names. Reload teams to continue.';
     if (!this.teamsLoaded()) return 'Load existing teams before creating a team.';
     return null;
   });
@@ -155,14 +155,14 @@ export class TeamBuilder {
           if (
             previous.loading &&
             !state.loading &&
-            !state.error &&
+            !state.loadError &&
             previous.teams !== state.teams
           ) {
             this.teamsLoaded.set(true);
           }
           previous = state;
           return {
-            ready: this.teamsLoaded() && !state.loading && !state.error,
+            ready: this.teamsLoaded() && !state.loading && !state.loadError,
             names: state.teams.map((team) => team.name.trim().toLowerCase()).sort(),
           };
         }),
@@ -180,7 +180,7 @@ export class TeamBuilder {
       });
 
     // The store has no loaded flag, so establish a read if none is in progress.
-    if (!this.teamState().loading && !this.teamState().error) this.reloadTeams();
+    if (!this.teamState().loading && !this.teamState().loadError) this.reloadTeams();
   }
 
   reloadTeams(): void {

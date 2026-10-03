@@ -60,7 +60,8 @@ describe('TeamsPage', () => {
     state$ = new BehaviorSubject<TeamState>({
       teams: [],
       loading: false,
-      error: null,
+      loadError: null,
+      mutationError: null,
       creating: false,
       deletingIds: [],
     });
@@ -133,14 +134,14 @@ describe('TeamsPage', () => {
     expect(fixture.componentInstance.selectedTeamId()).toBe(team.id);
     expect(fixture.componentInstance.selectedTeam()).toBeNull();
     expect(localStorage.getItem(selectionKey)).toBe(team.id);
-    state$.next({ ...state$.value, loading: false, error: 'offline' });
+    state$.next({ ...state$.value, loading: false, loadError: 'offline' });
     pending.error(new Error('offline'));
     await fixture.whenStable();
     expect(localStorage.getItem(selectionKey)).toBe(team.id);
 
     loadTeams$.mockImplementationOnce(() =>
       defer(() => {
-        state$.next({ ...state$.value, teams: [team], error: null });
+        state$.next({ ...state$.value, teams: [team], loadError: null });
         return of([team]);
       }),
     );
@@ -318,7 +319,7 @@ describe('TeamsPage', () => {
     const first = new Subject<Team[]>();
     loadTeams$.mockImplementationOnce(() =>
       defer(() => {
-        state$.next({ ...state$.value, loading: true, error: null });
+        state$.next({ ...state$.value, loading: true, loadError: null });
         return first;
       }),
     );
@@ -332,7 +333,7 @@ describe('TeamsPage', () => {
     state$.next({
       ...state$.value,
       loading: false,
-      error: 'Unable to load teams. Please try again.',
+      loadError: 'Unable to load teams. Please try again.',
     });
     first.error(new Error('offline'));
     await fixture.whenStable();
@@ -340,7 +341,7 @@ describe('TeamsPage', () => {
     expect(root.querySelector('app-team-builder')).not.toBeNull();
     loadTeams$.mockImplementationOnce(() =>
       defer(() => {
-        state$.next({ ...state$.value, loading: true, error: null });
+        state$.next({ ...state$.value, loading: true, loadError: null });
         state$.next({ ...state$.value, teams: [team], loading: false });
         return of([team]);
       }),

@@ -11,7 +11,8 @@ const DELETE_ERROR = 'Unable to delete team. Please try again.';
 export interface TeamState {
   teams: Team[];
   loading: boolean;
-  error: string | null;
+  loadError: string | null;
+  mutationError: string | null;
   creating: boolean;
   deletingIds: string[];
 }
@@ -27,7 +28,8 @@ export class TeamStore {
   private readonly stateSubject = new BehaviorSubject<TeamState>({
     teams: [],
     loading: false,
-    error: null,
+    loadError: null,
+    mutationError: null,
     creating: false,
     deletingIds: [],
   });
@@ -40,7 +42,7 @@ export class TeamStore {
       const request = ++this.loadRequest;
       const initialTeams = new Map(this.stateSubject.value.teams.map((team) => [team.id, team]));
       this.deletedDuringLoad = new Set();
-      this.updateState({ loading: true, error: null });
+      this.updateState({ loading: true, loadError: null });
 
       return defer(() => this.api.getTeams$()).pipe(
         tap((teams) => {
@@ -64,11 +66,12 @@ export class TeamStore {
               ...localTeams,
             ],
             loading: false,
+            loadError: null,
           });
         }),
         catchError(() => {
           if (request === this.loadRequest) {
-            this.updateState({ loading: false, error: LOAD_ERROR });
+            this.updateState({ loading: false, loadError: LOAD_ERROR });
           }
           return throwError(() => new Error(LOAD_ERROR));
         }),
@@ -99,14 +102,14 @@ export class TeamStore {
       this.updateState({
         teams: [...this.stateSubject.value.teams, optimisticTeam],
         creating: true,
-        error: null,
+        mutationError: null,
       });
 
       return defer(() => this.api.createTeam$(input)).pipe(
         tap((team) => this.finishCreate(tempId, team)),
         catchError(() => {
           this.finishCreate(tempId);
-          this.updateState({ error: CREATE_ERROR });
+          this.updateState({ mutationError: CREATE_ERROR });
           return throwError(() => new Error(CREATE_ERROR));
         }),
         finalize(() => this.finishCreate(tempId)),
@@ -123,7 +126,10 @@ export class TeamStore {
     return defer(() => {
       const request = Symbol(id);
       this.pendingDeletes.set(request, id);
-      this.updateState({ deletingIds: [...new Set(this.pendingDeletes.values())], error: null });
+      this.updateState({
+        deletingIds: [...new Set(this.pendingDeletes.values())],
+        mutationError: null,
+      });
 
       return defer(() => this.api.deleteTeam$(id)).pipe(
         tap(() => {
@@ -135,7 +141,7 @@ export class TeamStore {
         }),
         catchError(() => {
           this.finishDelete(request);
-          this.updateState({ error: DELETE_ERROR });
+          this.updateState({ mutationError: DELETE_ERROR });
           return throwError(() => new Error(DELETE_ERROR));
         }),
         finalize(() => this.finishDelete(request)),

@@ -47,7 +47,12 @@ export class TeamsPage {
     computation: ({ state, loaded }, previous): string | null => {
       const id = previous ? previous.value : this.restoredTeamId;
       // An empty initial store (or failed refresh) does not invalidate a saved selection.
-      if (!loaded || state.loading || state.error || state.teams.some((team) => team.id === id)) {
+      if (
+        !loaded ||
+        state.loading ||
+        state.loadError ||
+        state.teams.some((team) => team.id === id)
+      ) {
         return id;
       }
       return null;
