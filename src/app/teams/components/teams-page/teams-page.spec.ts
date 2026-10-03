@@ -418,6 +418,23 @@ describe('TeamsPage', () => {
     expect(builder.pokemonError()).toBeNull();
   });
 
+  it('cancels a superseded picker load before retrying', async () => {
+    const first = new Subject<PokemonListItem[]>();
+    const second = new Subject<PokemonListItem[]>();
+    loadPage$.mockReturnValueOnce(first).mockReturnValueOnce(second);
+    const fixture = TestBed.createComponent(TeamsPage);
+    await fixture.whenStable();
+
+    expect(first.observed).toBe(true);
+    fixture.componentInstance.retryPokemon();
+    await fixture.whenStable();
+
+    expect(first.observed).toBe(false);
+    expect(second.observed).toBe(true);
+    fixture.destroy();
+    expect(second.observed).toBe(false);
+  });
+
   it('cancels an in-flight picker load when leaving the page', () => {
     const cancelled = vi.fn();
     loadPage$.mockReturnValueOnce(new Subject<PokemonListItem[]>().pipe(finalize(cancelled)));
@@ -457,6 +474,19 @@ describe('TeamsPage', () => {
     expect(root.textContent).toContain('No teams yet');
     expect(fixture.componentInstance.selectedTeamId()).toBeNull();
     expect(localStorage.getItem(selectionKey)).toBeNull();
+  });
+
+  it('disables deletion while a team creation is pending', async () => {
+    state$.next({ ...state$.value, teams: [team], creating: true });
+    const fixture = TestBed.createComponent(TeamsPage);
+    await fixture.whenStable();
+
+    const button = fixture.nativeElement.querySelector(
+      '.teams-page__button--delete',
+    ) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    fixture.componentInstance.deleteTeam(team.id);
+    expect(deleteTeam$).not.toHaveBeenCalled();
   });
 
   it('retains the team and permits another attempt after a failed delete', async () => {

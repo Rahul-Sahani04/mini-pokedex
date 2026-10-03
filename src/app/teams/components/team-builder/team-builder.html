@@ -42,6 +42,7 @@
       <div class="team-builder__field">
         <label [for]="id + '-pokemon'">Find Pokémon</label>
         <input
+          #pokemonInput
           [id]="id + '-pokemon'"
           type="search"
           formControlName="pokemon"

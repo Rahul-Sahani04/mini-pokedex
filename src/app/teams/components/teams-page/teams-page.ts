@@ -11,7 +11,7 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
-import { EMPTY, catchError } from 'rxjs';
+import { EMPTY, Subject, catchError, switchMap } from 'rxjs';
 
 import { PokemonStore } from '../../../pokedex/state/pokemon.store';
 import { TeamStore } from '../../state/team.store';
@@ -33,6 +33,7 @@ export class TeamsPage {
   private readonly destroyRef = inject(DestroyRef);
   private readonly storage = this.getStorage();
   private readonly restoredTeamId = this.readSelectedTeamId();
+  private readonly pokemonLoadTrigger$ = new Subject<boolean | undefined>();
   private readonly teamsLoaded = signal(false);
   private readonly selectionChanged = signal(false);
 
@@ -81,6 +82,18 @@ export class TeamsPage {
   });
 
   constructor() {
+    this.pokemonLoadTrigger$
+      .pipe(
+        switchMap((forceRefresh) => {
+          const request$ = forceRefresh
+            ? this.pokemonStore.loadPage$(150, 0, true)
+            : this.pokemonStore.loadPage$(150, 0);
+          return request$.pipe(catchError(() => EMPTY));
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe();
+
     effect(() => {
       const id = this.selectedTeamId();
       const team = this.selectedTeam();
@@ -125,16 +138,7 @@ export class TeamsPage {
   }
 
   private loadPokemon(forceRefresh = false): void {
-    const request$ = forceRefresh
-      ? this.pokemonStore.loadPage$(150, 0, true)
-      : this.pokemonStore.loadPage$(150, 0);
-
-    request$
-      .pipe(
-        catchError(() => EMPTY),
-        takeUntilDestroyed(this.destroyRef),
-      )
-      .subscribe();
+    this.pokemonLoadTrigger$.next(forceRefresh ? true : undefined);
   }
 
   retry(): void {
@@ -152,6 +156,7 @@ export class TeamsPage {
 
   deleteTeam(id: string): void {
     if (
+      this.state().creating ||
       this.state().deletingIds.includes(id) ||
       !this.state().teams.some((team) => team.id === id)
     ) {

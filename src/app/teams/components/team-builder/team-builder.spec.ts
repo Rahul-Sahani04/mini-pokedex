@@ -378,6 +378,18 @@ describe('TeamBuilder', () => {
     expect(root.textContent).toContain('Choose no more than 6 Pokémon.');
   });
 
+  it('returns focus to the Pokémon picker after adding or removing a selection', async () => {
+    const picker = root.querySelector('[formControlName="pokemon"]') as HTMLInputElement;
+
+    component.addPokemon(items[0]);
+    await fixture.whenStable();
+    expect(document.activeElement).toBe(picker);
+
+    (root.querySelector('[aria-label="Remove bulbasaur"]') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    expect(document.activeElement).toBe(picker);
+  });
+
   it('submits trimmed data optimistically, blocks duplicate submits, and resets only after success', async () => {
     const pending = new Subject<Team>();
     createTeam$.mockReturnValueOnce(pending);

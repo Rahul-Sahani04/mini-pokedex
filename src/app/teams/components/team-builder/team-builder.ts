@@ -2,11 +2,13 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  ElementRef,
   computed,
   inject,
   input,
   output,
   signal,
+  viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import {
@@ -63,6 +65,7 @@ export class TeamBuilder {
   readonly pokemonLoading = input(false);
   readonly pokemonError = input<string | null>(null);
   readonly pokemonRetry = output<void>();
+  private readonly pokemonInput = viewChild<ElementRef<HTMLInputElement>>('pokemonInput');
 
   readonly id = `team-builder-${++nextBuilderId}`;
   readonly form = new FormGroup({
@@ -206,6 +209,7 @@ export class TeamBuilder {
     control.setValue([...control.value, pokemon]);
     this.form.controls.pokemon.setValue('');
     this.submitSuccess.set(false);
+    this.focusPokemonInput();
   }
 
   removePokemon(id: number): void {
@@ -214,6 +218,14 @@ export class TeamBuilder {
     control.markAsDirty();
     control.setValue(control.value.filter((pokemon) => pokemon.id !== id));
     this.submitSuccess.set(false);
+    this.focusPokemonInput();
+  }
+
+  private focusPokemonInput(): void {
+    const input = this.pokemonInput()?.nativeElement;
+    queueMicrotask(() => {
+      if (input?.isConnected) input.focus();
+    });
   }
 
   submit(): void {

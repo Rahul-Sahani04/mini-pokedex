@@ -139,7 +139,7 @@
           <button
             class="teams-page__button teams-page__button--delete"
             type="button"
-            [disabled]="state().deletingIds.includes(team.id)"
+            [disabled]="state().creating || state().deletingIds.includes(team.id)"
             [attr.aria-label]="
               (state().deletingIds.includes(team.id) ? 'Deleting ' : 'Delete ') + team.name
             "
