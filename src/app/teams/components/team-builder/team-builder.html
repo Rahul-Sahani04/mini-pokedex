@@ -15,7 +15,10 @@
           required
           [attr.aria-invalid]="nameError() ? 'true' : null"
           [attr.aria-describedby]="
-            id + '-name-hint' + (nameError() ? ' ' + id + '-name-error' : '')
+            id +
+            '-name-hint' +
+            (nameError() ? ' ' + id + '-name-error' : '') +
+            (namePending() || teamNamesStatus() ? ' ' + id + '-name-status' : '')
           "
         />
         <p class="team-builder__hint" [id]="id + '-name-hint'">
@@ -23,6 +26,16 @@
         </p>
         @if (nameError(); as error) {
           <p class="team-builder__error" [id]="id + '-name-error'">{{ error }}</p>
+        }
+        @if (teamNamesStatus(); as status) {
+          <p class="team-builder__hint" role="status" [id]="id + '-name-status'">{{ status }}</p>
+          @if (!teamState().loading) {
+            <button type="button" (click)="reloadTeams()">Reload teams</button>
+          }
+        } @else if (namePending()) {
+          <p class="team-builder__hint" role="status" [id]="id + '-name-status'">
+            Checking team name…
+          </p>
         }
       </div>
 
@@ -114,7 +127,7 @@
     @if (submitSuccess()) {
       <p role="status">Team created successfully.</p>
     }
-    <button class="team-builder__submit" type="submit" [disabled]="submitting()">
+    <button class="team-builder__submit" type="submit" [disabled]="submitDisabled()">
       {{ submitting() ? 'Creating team…' : submitError() ? 'Try again' : 'Create team' }}
     </button>
   </form>

@@ -3,7 +3,7 @@
     <p class="teams-page__eyebrow">Team builder</p>
     <h1 id="teams-page-title" class="teams-page__title">Your teams</h1>
     <p class="teams-page__message">
-      Build a team and review your saved teams and their Pokémon counts.
+      Build a team and select a saved team to review its Pokémon, stats, and types.
     </p>
   </header>
 
@@ -14,6 +14,59 @@
     [pokemonError]="pokemonState().error"
     (pokemonRetry)="retryPokemon()"
   />
+
+  <section class="teams-page__selection teams-page__state" aria-labelledby="selected-team-title">
+    @if (selectedTeam(); as team) {
+      <h2 id="selected-team-title" class="teams-page__state-title">
+        Selected team: {{ team.name }}
+      </h2>
+      <p class="teams-page__message">
+        Data available for {{ selectedSummary().knownCount }} of
+        {{ team.pokemon_ids.length }} Pokémon. Only the first 150 Pokémon are loaded on this page.
+        Totals include loaded Pokémon only.
+      </p>
+      @if (selectedSummary().knownCount < team.pokemon_ids.length) {
+        <p class="teams-page__message" role="status">
+          Partial coverage: some Pokémon details are unavailable.
+        </p>
+      }
+      <h3>Pokémon</h3>
+      <ul class="teams-page__members">
+        @for (member of selectedMembers(); track $index) {
+          <li>#{{ member.id }} — {{ member.pokemon?.name ?? 'Details unavailable' }}</li>
+        } @empty {
+          <li>This team has no Pokémon.</li>
+        }
+      </ul>
+      <h3>Total base stats: {{ selectedSummary().totalBaseStats }}</h3>
+      <dl class="teams-page__details">
+        @for (stat of selectedSummary().stats; track stat.name) {
+          <div class="teams-page__detail">
+            <dt>{{ stat.name }}</dt>
+            <dd>{{ stat.total }}</dd>
+          </div>
+        }
+      </dl>
+      <h3>Type distribution</h3>
+      <p class="teams-page__message">
+        Each Pokémon counts once per type, including both types for dual-type Pokémon.
+      </p>
+      <dl class="teams-page__details">
+        @for (type of selectedSummary().types; track type.name) {
+          <div class="teams-page__detail">
+            <dt>{{ type.name }}</dt>
+            <dd>{{ type.count }}</dd>
+          </div>
+        }
+      </dl>
+      @if (selectedSummary().knownCount === 0 && team.pokemon_ids.length > 0) {
+        <p class="teams-page__message">No loaded Pokémon data is available for this team yet.</p>
+      }
+    } @else {
+      <h2 id="selected-team-title" class="teams-page__state-title">No team selected</h2>
+      <p>Select View on a saved team to see its summary.</p>
+    }
+  </section>
 
   @if (state().loading) {
     <p class="teams-page__message" role="status">Loading teams…</p>
@@ -48,7 +101,10 @@
     </p>
     <ul class="teams-page__list" aria-label="Saved teams" [attr.aria-busy]="state().loading">
       @for (team of state().teams; track team.id) {
-        <li class="teams-page__card">
+        <li
+          class="teams-page__card"
+          [class.teams-page__card--selected]="selectedTeamId() === team.id"
+        >
           <h2 class="teams-page__team-name">{{ team.name }}</h2>
           <dl class="teams-page__details">
             <div class="teams-page__detail">
@@ -71,6 +127,15 @@
           @if (deleteErrors()[team.id]; as error) {
             <p class="teams-page__action-error" role="alert">{{ error }}</p>
           }
+          <button
+            class="teams-page__button teams-page__button--view"
+            type="button"
+            [attr.aria-label]="'View ' + team.name"
+            [attr.aria-pressed]="selectedTeamId() === team.id"
+            (click)="selectTeam(team.id)"
+          >
+            {{ selectedTeamId() === team.id ? 'Selected' : 'View' }}
+          </button>
           <button
             class="teams-page__button teams-page__button--delete"
             type="button"

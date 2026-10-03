@@ -39,12 +39,14 @@ describe('TeamBuilder', () => {
   let component: TeamBuilder;
   let root: HTMLElement;
   let createTeam$: ReturnType<typeof vi.fn>;
+  let getTeams$: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     createTeam$ = vi.fn(() => of(savedTeam));
+    getTeams$ = vi.fn(() => of([] as Team[]));
     TestBed.configureTestingModule({
       imports: [TeamBuilder],
-      providers: [{ provide: TeamApiService, useValue: { createTeam$ } }],
+      providers: [{ provide: TeamApiService, useValue: { createTeam$, getTeams$ } }],
     });
     fixture = TestBed.createComponent(TeamBuilder);
     fixture.componentRef.setInput('items', items);
@@ -86,9 +88,14 @@ describe('TeamBuilder', () => {
     [' abc ', null],
     [` ${'a'.repeat(30)} `, null],
     ['a'.repeat(31), 'maxlength'],
-  ])('validates trimmed name boundaries for %j', (value, error) => {
+  ])('validates trimmed name boundaries for %j', async (value, error) => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
     const name = component.form.controls.name;
     name.setValue(value);
+    if (!error) {
+      expect(name.pending).toBe(true);
+      await vi.advanceTimersByTimeAsync(300);
+    }
     expect(error ? name.hasError(error) : name.valid).toBe(true);
   });
 
@@ -100,8 +107,191 @@ describe('TeamBuilder', () => {
     await fixture.whenStable();
     expect(root.textContent).toContain('Use no more than 30 characters');
     input('name', 'Kanto');
+    await new Promise((resolve) => setTimeout(resolve, 350));
     await fixture.whenStable();
     expect(root.querySelector('.team-builder__error')).toBeNull();
+  });
+
+  it('checks trimmed case-insensitive duplicates after 300ms without fetching for validation', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
+    getTeams$.mockReturnValueOnce(of([{ ...savedTeam, name: ' KANTO ' }]));
+    component.reloadTeams();
+    const reads = getTeams$.mock.calls.length;
+    input('name', ' kanto ');
+    expect(component.form.controls.name.pending).toBe(true);
+    await vi.advanceTimersByTimeAsync(299);
+    expect(component.form.controls.name.errors).toBeNull();
+    await vi.advanceTimersByTimeAsync(1);
+    await fixture.whenStable();
+    expect(component.form.controls.name.errors).toEqual({ nameTaken: true });
+    expect(root.textContent).toContain('A team with this name already exists.');
+    input('name', 'Johto');
+    await vi.advanceTimersByTimeAsync(300);
+    await fixture.whenStable();
+    expect(component.form.controls.name.valid).toBe(true);
+    expect(root.querySelector('.team-builder__error')).toBeNull();
+    expect(getTeams$).toHaveBeenCalledTimes(reads);
+  });
+
+  it('keeps duplicate errors hidden for a pristine untouched control', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
+    getTeams$.mockReturnValueOnce(of([savedTeam]));
+    component.reloadTeams();
+    const name = component.form.controls.name;
+    name.setValue('Kanto');
+    await vi.advanceTimersByTimeAsync(300);
+    await fixture.whenStable();
+    expect(name.hasError('nameTaken')).toBe(true);
+    expect(name.pristine).toBe(true);
+    expect(root.querySelector('.team-builder__error')).toBeNull();
+    expect(root.textContent).not.toContain('Checking team name');
+    name.markAsTouched();
+    await fixture.whenStable();
+    expect(root.textContent).toContain('A team with this name already exists.');
+  });
+
+  it('cancels stale checks across rapid changes in either direction and synchronous invalid input', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
+    getTeams$.mockReturnValueOnce(of([savedTeam]));
+    component.reloadTeams();
+    const name = component.form.controls.name;
+    input('name', 'Kanto');
+    await vi.advanceTimersByTimeAsync(299);
+    input('name', 'Johto');
+    await vi.advanceTimersByTimeAsync(1);
+    expect(name.pending).toBe(true);
+    expect(name.errors).toBeNull();
+    await vi.advanceTimersByTimeAsync(299);
+    expect(name.valid).toBe(true);
+    input('name', 'Johto');
+    await vi.advanceTimersByTimeAsync(299);
+    input('name', 'Kanto');
+    await vi.advanceTimersByTimeAsync(1);
+    expect(name.pending).toBe(true);
+    await vi.advanceTimersByTimeAsync(299);
+    expect(name.hasError('nameTaken')).toBe(true);
+    input('name', 'Johto');
+    await vi.advanceTimersByTimeAsync(299);
+    input('name', 'ab');
+    await vi.advanceTimersByTimeAsync(300);
+    expect(name.errors).toEqual({ minlength: { requiredLength: 3, actualLength: 2 } });
+    expect(name.pending).toBe(false);
+  });
+
+  it('disables submission while pending and guards direct submits', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
+    input('name', 'Kanto');
+    component.addPokemon(items[2]);
+    await fixture.whenStable();
+    const submit = root.querySelector('[type="submit"]') as HTMLButtonElement;
+    expect(submit.disabled).toBe(true);
+    expect(root.textContent).toContain('Checking team name');
+    submit.click();
+    component.submit();
+    expect(createTeam$).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(300);
+    await fixture.whenStable();
+    expect(submit.disabled).toBe(false);
+    submit.click();
+    expect(createTeam$).toHaveBeenCalledOnce();
+  });
+
+  it('rechecks store updates synchronously at submit, includes optimistic entries, and ignores metadata-only updates', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
+    input('name', 'Kanto');
+    component.addPokemon(items[2]);
+    await vi.advanceTimersByTimeAsync(300);
+    expect(component.form.valid).toBe(true);
+    const pending = new Subject<Team>();
+    createTeam$.mockReturnValueOnce(pending);
+    const creation = TestBed.inject(TeamStore)
+      .createTeam$({
+        trainer_id: 1,
+        name: ' kANTO ',
+        pokemon_ids: [1],
+        created_at: savedTeam.created_at,
+      })
+      .subscribe();
+    expect(component.form.pending).toBe(true);
+    component.submit();
+    expect(createTeam$).toHaveBeenCalledOnce(); // Only the external optimistic creation.
+    await vi.advanceTimersByTimeAsync(300);
+    expect(component.form.controls.name.hasError('nameTaken')).toBe(true);
+    pending.next(savedTeam);
+    pending.complete();
+    expect(component.form.controls.name.pending).toBe(false); // Same normalized name, new ID.
+    expect(component.form.controls.name.hasError('nameTaken')).toBe(true);
+    creation.unsubscribe();
+    getTeams$.mockReturnValueOnce(of([]));
+    component.reloadTeams();
+    expect(component.form.pending).toBe(true);
+    await vi.advanceTimersByTimeAsync(300);
+    expect(component.form.valid).toBe(true);
+  });
+
+  it('never accepts an unloaded, loading, failed, or cancelled list and offers safe recovery', async () => {
+    fixture.destroy();
+    const initialRead = new Subject<Team[]>();
+    getTeams$.mockReturnValueOnce(initialRead);
+    fixture = TestBed.createComponent(TeamBuilder);
+    fixture.componentRef.setInput('items', items);
+    component = fixture.componentInstance;
+    root = fixture.nativeElement as HTMLElement;
+    await fixture.whenStable();
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
+    input('name', 'Kanto');
+    component.addPokemon(items[2]);
+    await vi.advanceTimersByTimeAsync(300);
+    component.submit();
+    await fixture.whenStable();
+    expect((root.querySelector('[type="submit"]') as HTMLButtonElement).disabled).toBe(true);
+    expect(root.textContent).toContain('Loading existing team names');
+    expect(createTeam$).not.toHaveBeenCalled();
+    initialRead.error(new Error('private list backend detail'));
+    await vi.advanceTimersByTimeAsync(300);
+    await fixture.whenStable();
+    expect(component.form.controls.name.hasError('teamNamesUnavailable')).toBe(true);
+    expect(root.textContent).toContain('Couldn’t verify existing team names');
+    expect(root.textContent).not.toContain('private list backend detail');
+    component.submit();
+    expect(createTeam$).not.toHaveBeenCalled();
+    component.reloadTeams();
+    await vi.advanceTimersByTimeAsync(300);
+    expect(component.form.valid).toBe(true);
+
+    const cancelledRead = new Subject<Team[]>();
+    getTeams$.mockReturnValueOnce(cancelledRead);
+    const refresh = TestBed.inject(TeamStore).loadTeams$().subscribe();
+    component.submit();
+    expect(createTeam$).not.toHaveBeenCalled();
+    refresh.unsubscribe();
+    await vi.advanceTimersByTimeAsync(300);
+    expect(component.form.valid).toBe(true); // The previously successful list remains usable.
+  });
+
+  it('does not mistake an initial empty completion for a loaded empty list', async () => {
+    fixture.destroy();
+    const initialRead = new Subject<Team[]>();
+    getTeams$.mockReturnValueOnce(initialRead);
+    fixture = TestBed.createComponent(TeamBuilder);
+    fixture.componentRef.setInput('items', items);
+    component = fixture.componentInstance;
+    root = fixture.nativeElement as HTMLElement;
+    await fixture.whenStable();
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
+    input('name', 'Kanto');
+    component.addPokemon(items[2]);
+    initialRead.complete();
+    await vi.advanceTimersByTimeAsync(300);
+    await fixture.whenStable();
+    expect(component.form.controls.name.hasError('teamNamesUnavailable')).toBe(true);
+    expect((root.querySelector('[type="submit"]') as HTMLButtonElement).disabled).toBe(true);
+    expect(root.textContent).toContain('Load existing teams before creating a team.');
+    component.submit();
+    expect(createTeam$).not.toHaveBeenCalled();
+    component.reloadTeams();
+    await vi.advanceTimersByTimeAsync(300);
+    expect(component.form.valid).toBe(true);
   });
 
   it('debounces search by 300ms, normalizes it, and ignores equivalent searches', async () => {
@@ -236,6 +426,7 @@ describe('TeamBuilder', () => {
     input('name', 'Kanto');
     component.addPokemon(items[2]);
     input('pokemon', 'bul');
+    await new Promise((resolve) => setTimeout(resolve, 350));
     component.submit();
     pending.error(new Error('private backend detail'));
     await fixture.whenStable();
@@ -252,6 +443,10 @@ describe('TeamBuilder', () => {
     expect(component.submitting()).toBe(false);
     expect(createTeam$).toHaveBeenCalledOnce();
 
+    // Store errors block uniqueness checks until the list has been recovered.
+    component.reloadTeams();
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    await fixture.whenStable();
     (root.querySelector('[type="submit"]') as HTMLButtonElement).click();
     await fixture.whenStable();
     expect(createTeam$).toHaveBeenCalledTimes(2);
@@ -264,6 +459,7 @@ describe('TeamBuilder', () => {
     createTeam$.mockReturnValueOnce(pending);
     input('name', 'Kanto');
     component.addPokemon(items[2]);
+    await new Promise((resolve) => setTimeout(resolve, 350));
     component.submit();
     const store = TestBed.inject(TeamStore);
     expect((await firstValueFrom(store.state$)).creating).toBe(true);
