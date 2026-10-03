@@ -186,6 +186,8 @@ describe('PokedexPage', () => {
     const type = fixture.nativeElement.querySelector(
       '.pokedex-page__filter select',
     ) as HTMLSelectElement;
+    expect(input.name).toBe('search');
+    expect(type.name).toBe('type');
 
     input.focus();
     input.value = 'char';
@@ -258,6 +260,16 @@ describe('PokedexPage', () => {
     panel.closed.emit();
     await fixture.whenStable();
     expect(document.activeElement).toBe(detailsButton);
+
+    row.focus();
+    row.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await fixture.whenStable();
+    expect(loadDetail$).toHaveBeenCalledTimes(3);
+    panel = fixture.debugElement.query(By.directive(PokemonDetailPanel))
+      .componentInstance as PokemonDetailPanel;
+    panel.closed.emit();
+    await fixture.whenStable();
+    expect(document.activeElement).toBe(row);
   });
 
   it('shows loading, cancels superseded details, and ignores the old response', async () => {

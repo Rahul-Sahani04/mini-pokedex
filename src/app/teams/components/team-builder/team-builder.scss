@@ -102,6 +102,11 @@
   gap: 1rem;
   margin-bottom: 0.25rem;
   text-align: left;
+
+  &[aria-selected='true'] {
+    outline: 3px solid var(--color-text);
+    outline-offset: -3px;
+  }
 }
 
 .team-builder__pokemon-name {

@@ -1,3 +1,39 @@
 .app-shell {
   min-height: 100dvh;
+
+  &__navigation {
+    display: flex;
+    gap: 0.5rem;
+    max-width: var(--content-max-width);
+    margin: 0 auto;
+    padding: 1rem 1.5rem 0;
+  }
+
+  &__link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    padding: 0.625rem 1rem;
+    border-radius: 0.5rem;
+    color: var(--color-text);
+    font-weight: 600;
+    text-decoration: none;
+
+    &:hover,
+    &--active {
+      background: var(--color-surface);
+      color: var(--color-primary);
+    }
+
+    &:focus-visible {
+      outline: 3px solid var(--color-primary);
+      outline-offset: 3px;
+    }
+  }
+}
+
+@media (max-width: 48rem) {
+  .app-shell__navigation {
+    padding-inline: 1rem;
+  }
 }

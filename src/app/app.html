@@ -1,3 +1,23 @@
 <main class="app-shell">
+  <nav class="app-shell__navigation" aria-label="Primary navigation">
+    <a
+      class="app-shell__link"
+      routerLink="/pokedex"
+      routerLinkActive="app-shell__link--active"
+      [routerLinkActiveOptions]="{ exact: true }"
+      ariaCurrentWhenActive="page"
+    >
+      Pokédex
+    </a>
+    <a
+      class="app-shell__link"
+      routerLink="/teams"
+      routerLinkActive="app-shell__link--active"
+      [routerLinkActiveOptions]="{ exact: true }"
+      ariaCurrentWhenActive="page"
+    >
+      Teams
+    </a>
+  </nav>
   <router-outlet />
 </main>

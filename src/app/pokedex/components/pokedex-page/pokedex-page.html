@@ -35,6 +35,7 @@
         Search by name
         <input
           type="search"
+          name="search"
           [value]="searchText()"
           placeholder="Search Pokémon"
           (input)="changeSearch($event)"
@@ -42,7 +43,7 @@
       </label>
       <label class="pokedex-page__filter">
         Filter by type
-        <select [value]="selectedType() ?? ''" (change)="changeType($event)">
+        <select name="type" [value]="selectedType() ?? ''" (change)="changeType($event)">
           <option value="">All types</option>
           @for (type of types(); track type) {
             <option [value]="type">{{ type }}</option>

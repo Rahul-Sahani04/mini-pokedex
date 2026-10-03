@@ -6,6 +6,7 @@ import {
   computed,
   inject,
   input,
+  linkedSignal,
   output,
   signal,
   viewChild,
@@ -65,7 +66,9 @@ export class TeamBuilder {
   readonly pokemonLoading = input(false);
   readonly pokemonError = input<string | null>(null);
   readonly pokemonRetry = output<void>();
+  private readonly nameInput = viewChild<ElementRef<HTMLInputElement>>('nameInput');
   private readonly pokemonInput = viewChild<ElementRef<HTMLInputElement>>('pokemonInput');
+  private readonly suggestionsList = viewChild<ElementRef<HTMLUListElement>>('suggestionsList');
 
   readonly id = `team-builder-${++nextBuilderId}`;
   readonly form = new FormGroup({
@@ -102,6 +105,26 @@ export class TeamBuilder {
         (pokemon) => !selectedIds.has(pokemon.id) && pokemon.name.toLowerCase().includes(query),
       )
       .slice(0, 10);
+  });
+  readonly suggestionsDismissed = signal(false);
+  readonly suggestionsOpen = computed(
+    () =>
+      !!this.search() &&
+      !this.suggestionsDismissed() &&
+      !this.pokemonLoading() &&
+      !this.pokemonError() &&
+      !this.submitting(),
+  );
+  readonly activeSuggestion = linkedSignal(() => {
+    this.suggestions();
+    this.suggestionsOpen();
+    return -1;
+  });
+  readonly activeSuggestionId = computed(() => {
+    const pokemon = this.suggestions()[this.activeSuggestion()];
+    return this.suggestionsOpen() && this.selected().length < 6 && pokemon
+      ? `${this.id}-option-${pokemon.id}`
+      : null;
   });
 
   // Form events include touched/pristine changes, so OnPush errors update even without value changes.
@@ -191,6 +214,52 @@ export class TeamBuilder {
       .subscribe({ error: () => undefined }); // Store exposes a safe, actionable state below.
   }
 
+  searchPokemon(): void {
+    this.suggestionsDismissed.set(false);
+    this.activeSuggestion.set(-1);
+  }
+
+  blurPokemon(): void {
+    this.form.controls.selected.markAsTouched();
+    this.suggestionsDismissed.set(true);
+    this.activeSuggestion.set(-1);
+  }
+
+  navigateSuggestions(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      if (this.suggestionsOpen()) event.preventDefault();
+      this.suggestionsDismissed.set(true);
+      this.activeSuggestion.set(-1);
+      return;
+    }
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp' && event.key !== 'Enter') return;
+    if (event.key !== 'Enter') this.suggestionsDismissed.set(false);
+    const suggestions = this.suggestions();
+    if (!this.suggestionsOpen() || !suggestions.length || this.selected().length >= 6) return;
+
+    const active = this.activeSuggestion();
+    if (event.key === 'Enter') {
+      if (active >= 0) {
+        event.preventDefault();
+        this.addPokemon(suggestions[active]);
+        this.activeSuggestion.set(-1);
+      }
+      return;
+    }
+
+    event.preventDefault();
+    const next =
+      event.key === 'ArrowDown'
+        ? Math.min(active + 1, suggestions.length - 1)
+        : active < 0
+          ? suggestions.length - 1
+          : Math.max(active - 1, 0);
+    this.activeSuggestion.set(next);
+    this.suggestionsList()
+      ?.nativeElement.querySelector(`#${this.id}-option-${suggestions[next].id}`)
+      ?.scrollIntoView?.({ block: 'nearest' });
+  }
+
   addPokemon(pokemon: PokemonListItem): void {
     const control = this.form.controls.selected;
     if (
@@ -231,7 +300,12 @@ export class TeamBuilder {
   submit(): void {
     if (this.submitting()) return;
     this.form.markAllAsTouched();
-    if (this.form.invalid || this.form.pending || !this.teamNames().ready) return;
+    if (this.form.invalid) {
+      if (this.form.controls.name.invalid) this.nameInput()?.nativeElement.focus();
+      else this.focusPokemonInput();
+      return;
+    }
+    if (this.form.pending || !this.teamNames().ready) return;
 
     this.submitting.set(true);
     this.submitError.set(null);

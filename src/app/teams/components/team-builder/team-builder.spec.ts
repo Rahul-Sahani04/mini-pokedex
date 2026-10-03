@@ -79,6 +79,9 @@ describe('TeamBuilder', () => {
     (root.querySelector('[type="submit"]') as HTMLButtonElement).click();
     await fixture.whenStable();
     expect(root.textContent).toContain('Choose at least one Pokémon.');
+    expect(document.activeElement).toBe(name);
+    expect(root.querySelector('[role="alert"][id$="-name-error"]')).not.toBeNull();
+    expect(root.querySelector('[role="alert"][id$="-selection-error"]')).not.toBeNull();
     expect(createTeam$).not.toHaveBeenCalled();
   });
 
@@ -316,6 +319,137 @@ describe('TeamBuilder', () => {
     await vi.advanceTimersByTimeAsync(300);
     await fixture.whenStable();
     expect(root.textContent).toContain('No matching Pokémon');
+  });
+
+  it('provides combobox semantics and selects the active suggestion from the keyboard', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
+    input('pokemon', 'a');
+    await vi.advanceTimersByTimeAsync(300);
+    await fixture.whenStable();
+
+    const picker = root.querySelector('[formControlName="pokemon"]') as HTMLInputElement;
+    expect(picker.getAttribute('role')).toBe('combobox');
+    expect(picker.getAttribute('aria-autocomplete')).toBe('list');
+    expect(picker.name).toBe('pokemon');
+    expect((root.querySelector('[formControlName="name"]') as HTMLInputElement).name).toBe('name');
+    expect(picker.getAttribute('aria-expanded')).toBe('true');
+    expect(root.querySelector('[role="listbox"]')?.id).toBe(picker.getAttribute('aria-controls'));
+    expect(root.querySelectorAll('[role="option"]')).toHaveLength(3);
+    expect(root.querySelector('[role="option"]')?.getAttribute('tabindex')).toBe('-1');
+
+    picker.focus();
+
+    picker.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    await fixture.whenStable();
+    expect(picker.getAttribute('aria-activedescendant')).toBe(`${component.id}-option-1`);
+    picker.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    await fixture.whenStable();
+    expect(picker.getAttribute('aria-activedescendant')).toBe(`${component.id}-option-4`);
+    expect(root.querySelector('[aria-selected="true"]')?.id).toBe(`${component.id}-option-4`);
+    expect(document.activeElement).toBe(picker);
+
+    const choose = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    picker.dispatchEvent(choose);
+    await fixture.whenStable();
+    expect(choose.defaultPrevented).toBe(true);
+    expect(createTeam$).not.toHaveBeenCalled();
+    expect(component.selected()).toEqual([items[1]]);
+    expect(picker.value).toBe('');
+
+    input('pokemon', 'a');
+    await vi.advanceTimersByTimeAsync(300);
+    picker.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    picker.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await fixture.whenStable();
+    expect(picker.getAttribute('aria-expanded')).toBe('false');
+    expect(picker.getAttribute('aria-activedescendant')).toBeNull();
+    expect(picker.getAttribute('aria-controls')).toBeNull();
+    expect(root.querySelector('[role="listbox"]')).toBeNull();
+    expect(picker.value).toBe('a');
+
+    picker.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+    await fixture.whenStable();
+    expect(picker.getAttribute('aria-expanded')).toBe('true');
+    expect(picker.getAttribute('aria-activedescendant')).toBe(`${component.id}-option-25`);
+    picker.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+    picker.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+    await fixture.whenStable();
+    expect(picker.getAttribute('aria-activedescendant')).toBe(`${component.id}-option-1`);
+  });
+
+  it('clears the active suggestion as queries, results, or availability change', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
+    input('pokemon', 'a');
+    await vi.advanceTimersByTimeAsync(300);
+    await fixture.whenStable();
+    const picker = root.querySelector('[role="combobox"]') as HTMLInputElement;
+    picker.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    await fixture.whenStable();
+    expect(picker.getAttribute('aria-activedescendant')).not.toBeNull();
+
+    input('pokemon', 'pika');
+    await fixture.whenStable();
+    expect(picker.getAttribute('aria-activedescendant')).toBeNull();
+    await vi.advanceTimersByTimeAsync(300);
+    picker.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+    await fixture.whenStable();
+    expect(picker.getAttribute('aria-activedescendant')).toBe(`${component.id}-option-25`);
+
+    fixture.componentRef.setInput('items', [items[0]]);
+    await fixture.whenStable();
+    expect(picker.getAttribute('aria-activedescendant')).toBeNull();
+    picker.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(component.selected()).toHaveLength(0);
+
+    fixture.componentRef.setInput('items', items);
+    picker.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    fixture.componentRef.setInput('pokemonLoading', true);
+    await fixture.whenStable();
+    expect(picker.getAttribute('aria-expanded')).toBe('false');
+    expect(picker.getAttribute('aria-activedescendant')).toBeNull();
+    picker.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(component.selected()).toHaveLength(0);
+
+    fixture.componentRef.setInput('pokemonLoading', false);
+    fixture.componentRef.setInput('pokemonError', 'backend detail');
+    await fixture.whenStable();
+    picker.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    picker.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(picker.getAttribute('aria-expanded')).toBe('false');
+    expect(component.selected()).toHaveLength(0);
+  });
+
+  it('does not add beyond six selections from the keyboard', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
+    const cached = Array.from({ length: 7 }, (_, index) => pokemon(index + 1));
+    fixture.componentRef.setInput('items', cached);
+    for (const item of cached.slice(0, 6)) component.addPokemon(item);
+    input('pokemon', 'pokemon-');
+    await vi.advanceTimersByTimeAsync(300);
+    await fixture.whenStable();
+    const picker = root.querySelector('[role="combobox"]') as HTMLInputElement;
+    picker.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    picker.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await fixture.whenStable();
+    expect(component.selected()).toHaveLength(6);
+    expect(picker.getAttribute('aria-activedescendant')).toBeNull();
+    expect((root.querySelector('[role="option"]') as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('focuses the picker on submit when the team name is valid but selection is invalid', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
+    input('name', 'Johto');
+    await vi.advanceTimersByTimeAsync(300);
+    await fixture.whenStable();
+    (root.querySelector('[type="submit"]') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    const picker = root.querySelector('[role="combobox"]') as HTMLInputElement;
+    expect(document.activeElement).toBe(picker);
+    expect(picker.getAttribute('aria-invalid')).toBe('true');
+    expect(root.querySelector('[role="alert"][id$="-selection-error"]')?.textContent).toContain(
+      'Choose at least one Pokémon.',
+    );
+    expect(createTeam$).not.toHaveBeenCalled();
   });
 
   it('uses only the supplied first 150 and updates suggestions when items arrive', async () => {

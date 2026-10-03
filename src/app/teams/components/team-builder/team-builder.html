@@ -8,8 +8,10 @@
       <div class="team-builder__field">
         <label [for]="id + '-name'">Team name</label>
         <input
+          #nameInput
           [id]="id + '-name'"
           type="text"
+          name="name"
           formControlName="name"
           autocomplete="off"
           required
@@ -25,7 +27,7 @@
           3–30 characters, excluding outer spaces.
         </p>
         @if (nameError(); as error) {
-          <p class="team-builder__error" [id]="id + '-name-error'">{{ error }}</p>
+          <p class="team-builder__error" role="alert" [id]="id + '-name-error'">{{ error }}</p>
         }
         @if (teamNamesStatus(); as status) {
           <p class="team-builder__hint" role="status" [id]="id + '-name-status'">{{ status }}</p>
@@ -45,18 +47,28 @@
           #pokemonInput
           [id]="id + '-pokemon'"
           type="search"
+          name="pokemon"
           formControlName="pokemon"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-haspopup="listbox"
           autocomplete="off"
           placeholder="Search by name"
-          [attr.aria-controls]="id + '-suggestions'"
+          [attr.aria-expanded]="suggestionsOpen()"
+          [attr.aria-controls]="suggestionsOpen() ? id + '-suggestions' : null"
+          [attr.aria-activedescendant]="activeSuggestionId()"
           [attr.aria-invalid]="selectionError() ? 'true' : null"
           [attr.aria-describedby]="
             id + '-picker-hint' + (selectionError() ? ' ' + id + '-selection-error' : '')
           "
-          (blur)="form.controls.selected.markAsTouched()"
+          (input)="searchPokemon()"
+          (focus)="suggestionsDismissed.set(false)"
+          (blur)="blurPokemon()"
+          (keydown)="navigateSuggestions($event)"
         />
         <p class="team-builder__hint" [id]="id + '-picker-hint'">
-          Type a name, then Tab to an Add button to choose a Pokémon.
+          Type a name, then use the Up and Down arrow keys and Enter to choose a Pokémon. Escape
+          closes suggestions.
         </p>
 
         <div class="team-builder__results" [attr.aria-busy]="pokemonLoading()">
@@ -67,30 +79,40 @@
               <p>Couldn’t load Pokémon. Please try again.</p>
               <button type="button" (click)="pokemonRetry.emit()">Retry Pokémon</button>
             </div>
-          } @else if (search()) {
+          } @else if (suggestionsOpen()) {
             <ul
+              #suggestionsList
               [id]="id + '-suggestions'"
               class="team-builder__suggestions"
+              role="listbox"
               aria-label="Pokémon suggestions"
             >
-              @for (pokemon of suggestions(); track pokemon.id) {
-                <li>
+              @for (pokemon of suggestions(); track pokemon.id; let index = $index) {
+                <li role="presentation">
                   <button
                     type="button"
+                    role="option"
+                    tabindex="-1"
+                    [id]="id + '-option-' + pokemon.id"
+                    [attr.aria-selected]="
+                      activeSuggestionId() !== null && activeSuggestion() === index
+                    "
                     [disabled]="selected().length >= 6"
                     [attr.aria-label]="'Add ' + pokemon.name"
+                    (mousedown)="$event.preventDefault()"
                     (click)="addPokemon(pokemon)"
                   >
                     <span class="team-builder__pokemon-name">{{ pokemon.name }}</span>
                     <span class="team-builder__hint">#{{ pokemon.id }} · Add</span>
                   </button>
                 </li>
-              } @empty {
-                <li role="status">
-                  No matching Pokémon. Try another name or remove a selected Pokémon.
-                </li>
               }
             </ul>
+            @if (!suggestions().length) {
+              <p role="status">
+                No matching Pokémon. Try another name or remove a selected Pokémon.
+              </p>
+            }
           } @else {
             <p class="team-builder__hint">Search to find Pokémon in the first 150.</p>
           }
@@ -117,7 +139,9 @@
           }
         </ul>
         @if (selectionError(); as error) {
-          <p class="team-builder__error" [id]="id + '-selection-error'">{{ error }}</p>
+          <p class="team-builder__error" role="alert" [id]="id + '-selection-error'">
+            {{ error }}
+          </p>
         }
       </div>
     </fieldset>

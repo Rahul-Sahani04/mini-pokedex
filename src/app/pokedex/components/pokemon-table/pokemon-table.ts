@@ -36,6 +36,19 @@ export class PokemonTable {
     this.selected.emit({ item: pokemon, trigger });
   }
 
+  protected selectFromRowKeydown(event: KeyboardEvent, pokemon: PokemonListItem): void {
+    if (event.target !== event.currentTarget) {
+      return;
+    }
+
+    if (event.key !== 'Enter' && event.key !== ' ') {
+      return;
+    }
+
+    event.preventDefault();
+    this.select(pokemon, event.currentTarget as HTMLElement);
+  }
+
   protected ariaSort(field: string): 'ascending' | 'descending' | 'none' {
     const current = this.sort();
 
