@@ -5,7 +5,7 @@
     </caption>
     <thead>
       <tr>
-        <th class="pokemon-table__image-heading" scope="col">Image</th>
+        <th class="pokemon-table__image-heading" scope="col">Sprite</th>
         <th scope="col" [attr.aria-sort]="ariaSort('name')">
           <button
             class="pokemon-table__sort"
@@ -59,26 +59,31 @@
           (keydown)="selectFromRowKeydown($event, pokemon)"
         >
           <td class="pokemon-table__image-cell">
-            @if (pokemon.sprite.frontDefault ?? pokemon.sprite.officialArtwork; as spriteUrl) {
-              <img
-                class="pokemon-table__image"
-                [src]="spriteUrl"
-                alt=""
-                width="64"
-                height="64"
-                loading="lazy"
-              />
-            }
+            <div class="pokemon-table__sprite-slot">
+              @if (pokemon.sprite.frontDefault ?? pokemon.sprite.officialArtwork; as spriteUrl) {
+                <img
+                  class="pokemon-table__image"
+                  [src]="spriteUrl"
+                  alt=""
+                  width="48"
+                  height="48"
+                  loading="lazy"
+                />
+              }
+            </div>
           </td>
           <th class="pokemon-table__name" scope="row">
-            <button
-              #detailsButton
-              class="pokemon-table__details"
-              type="button"
-              [attr.aria-label]="'View details for ' + pokemon.name"
-            >
-              {{ pokemon.name }}
-            </button>
+            <div class="pokemon-table__name-group">
+              <span class="pokemon-table__id-badge">#{{ pokemon.id }}</span>
+              <button
+                #detailsButton
+                class="pokemon-table__details"
+                type="button"
+                [attr.aria-label]="'View details for ' + pokemon.name"
+              >
+                {{ pokemon.name }}
+              </button>
+            </div>
           </th>
           <td>
             <div class="pokemon-table__types">
@@ -92,7 +97,9 @@
           @for (column of statColumns; track column.field) {
             <td class="pokemon-table__number">{{ statValue(pokemon, column.field) }}</td>
           }
-          <td class="pokemon-table__number pokemon-table__total">{{ total(pokemon) }}</td>
+          <td class="pokemon-table__number pokemon-table__total">
+            <span class="pokemon-table__total-badge">{{ total(pokemon) }}</span>
+          </td>
         </tr>
       }
     </tbody>

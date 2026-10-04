@@ -1,23 +1,31 @@
 <main class="app-shell">
-  <nav class="app-shell__navigation" aria-label="Primary navigation">
-    <a
-      class="app-shell__link"
-      routerLink="/pokedex"
-      routerLinkActive="app-shell__link--active"
-      [routerLinkActiveOptions]="{ exact: true }"
-      ariaCurrentWhenActive="page"
-    >
-      Pokédex
-    </a>
-    <a
-      class="app-shell__link"
-      routerLink="/teams"
-      routerLinkActive="app-shell__link--active"
-      [routerLinkActiveOptions]="{ exact: true }"
-      ariaCurrentWhenActive="page"
-    >
-      Teams
-    </a>
-  </nav>
-  <router-outlet />
+  <header class="app-shell__topbar">
+    <div class="app-shell__topbar-inner">
+      <div class="app-shell__brand">
+        <span class="app-shell__led" aria-hidden="true"></span>
+        <span class="app-shell__title-tag">GBA // POKÉDEX</span>
+      </div>
+      <nav class="app-shell__navigation" aria-label="Primary navigation">
+        <a
+          class="app-shell__link"
+          routerLink="/pokedex"
+          routerLinkActive="app-shell__link--active"
+          [routerLinkActiveOptions]="{ exact: true }"
+          ariaCurrentWhenActive="page"
+          >Pokédex</a
+        >
+        <a
+          class="app-shell__link"
+          routerLink="/teams"
+          routerLinkActive="app-shell__link--active"
+          [routerLinkActiveOptions]="{ exact: true }"
+          ariaCurrentWhenActive="page"
+          >Teams</a
+        >
+      </nav>
+    </div>
+  </header>
+  <div class="app-shell__body">
+    <router-outlet />
+  </div>
 </main>

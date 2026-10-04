@@ -9,8 +9,8 @@
   (keydown)="keepFocus($event)"
 >
   <header class="pokemon-detail-panel__header">
-    <div>
-      <p class="pokemon-detail-panel__id">#{{ item().id }}</p>
+    <div class="pokemon-detail-panel__title-box">
+      <span class="pokemon-detail-panel__id">#{{ item().id }}</span>
       <h2 class="pokemon-detail-panel__title">{{ item().name }}</h2>
     </div>
     <button
@@ -25,7 +25,9 @@
 
   <div class="pokemon-detail-panel__body">
     @if (loading()) {
-      <p class="pokemon-detail-panel__state" role="status">Loading Pokémon details…</p>
+      <div class="pokemon-detail-panel__state" role="status">
+        <p>Loading Pokémon details…</p>
+      </div>
     } @else if (error(); as message) {
       <div class="pokemon-detail-panel__state" role="alert">
         <p>Could not load Pokémon details. {{ message }}</p>
@@ -44,11 +46,14 @@
 
       <div class="pokemon-detail-panel__types" aria-label="Types">
         @for (type of pokemon.types; track type.slot) {
-          <span class="pokemon-detail-panel__type">{{ type.name }}</span>
+          <span [class]="'pokemon-detail-panel__type pokemon-detail-panel__type--' + type.name">{{
+            type.name
+          }}</span>
         }
       </div>
 
       <section class="pokemon-detail-panel__section" aria-label="Measurements">
+        <h3 class="pokemon-detail-panel__section-title">Measurements</h3>
         <dl class="pokemon-detail-panel__measurements">
           <div>
             <dt>Height</dt>
@@ -66,8 +71,10 @@
       </section>
 
       <section class="pokemon-detail-panel__section" aria-labelledby="pokemon-detail-stats">
-        <h3 id="pokemon-detail-stats">Base stats</h3>
-        <app-pokemon-stats-chart [stats]="pokemon.stats" />
+        <h3 id="pokemon-detail-stats" class="pokemon-detail-panel__section-title">Base stats</h3>
+        <div class="pokemon-detail-panel__chart-wrapper">
+          <app-pokemon-stats-chart [stats]="pokemon.stats" />
+        </div>
         <dl class="pokemon-detail-panel__stats">
           @for (stat of pokemon.stats; track stat.name) {
             <div>
@@ -81,14 +88,16 @@
       </section>
 
       <section class="pokemon-detail-panel__section" aria-labelledby="pokemon-detail-abilities">
-        <h3 id="pokemon-detail-abilities">Abilities</h3>
+        <h3 id="pokemon-detail-abilities" class="pokemon-detail-panel__section-title">Abilities</h3>
         <ul class="pokemon-detail-panel__abilities">
           @for (ability of pokemon.abilities; track ability.slot) {
             <li>
-              <strong>{{ ability.name }}</strong>
-              @if (ability.isHidden) {
-                <span class="pokemon-detail-panel__hidden">Hidden</span>
-              }
+              <div class="pokemon-detail-panel__ability-title">
+                <strong>{{ ability.name }}</strong>
+                @if (ability.isHidden) {
+                  <span class="pokemon-detail-panel__hidden">Hidden</span>
+                }
+              </div>
               <p>{{ ability.shortEffect ?? 'Effect description unavailable.' }}</p>
             </li>
           } @empty {

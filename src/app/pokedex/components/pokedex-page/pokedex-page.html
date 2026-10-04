@@ -30,29 +30,31 @@
       <button class="pokedex-page__button" type="button" (click)="retry()">Try again</button>
     </div>
   } @else {
-    <div class="pokedex-page__filters" aria-label="Pokémon filters">
-      <label class="pokedex-page__filter">
-        Search by name
-        <input
-          type="search"
-          name="search"
-          [value]="searchText()"
-          placeholder="Search Pokémon"
-          (input)="changeSearch($event)"
-        />
-      </label>
-      <label class="pokedex-page__filter">
-        Filter by type
-        <select name="type" [value]="selectedType() ?? ''" (change)="changeType($event)">
-          <option value="">All types</option>
-          @for (type of types(); track type) {
-            <option [value]="type">{{ type }}</option>
-          }
-        </select>
-      </label>
-    </div>
-    <div class="pokedex-page__summary">
-      <p>{{ state().items.length }} Pokémon loaded in this initial batch</p>
+    <div class="pokedex-page__control-deck">
+      <div class="pokedex-page__filters" aria-label="Pokémon filters">
+        <label class="pokedex-page__filter">
+          Search by name
+          <input
+            type="search"
+            name="search"
+            [value]="searchText()"
+            placeholder="Search Pokémon"
+            (input)="changeSearch($event)"
+          />
+        </label>
+        <label class="pokedex-page__filter">
+          Filter by type
+          <select name="type" [value]="selectedType() ?? ''" (change)="changeType($event)">
+            <option value="">All types</option>
+            @for (type of types(); track type) {
+              <option [value]="type">{{ type }}</option>
+            }
+          </select>
+        </label>
+      </div>
+      <div class="pokedex-page__summary">
+        <p>{{ state().items.length }} Pokémon loaded</p>
+      </div>
     </div>
 
     @if (view().total === 0) {

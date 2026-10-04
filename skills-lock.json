@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "skills": {
+    "angular-developer": {
+      "source": "angular/skills",
+      "sourceType": "github",
+      "skillPath": "angular-developer/SKILL.md",
+      "computedHash": "29b83b6aa4b08118c6f9214a9461ed6470cedcc2a3fe71073ac2a79ae74dc923"
+    },
+    "frontend-architecture": {
+      "source": "we-are-singular/skills",
+      "sourceType": "github",
+      "skillPath": "skills/frontend-architecture/SKILL.md",
+      "computedHash": "43901e9b54450ad0118cbc80859a9bdf24a80410166067200510aafc68dd9577"
+    },
+    "vitest": {
+      "source": "pproenca/dot-skills",
+      "sourceType": "github",
+      "skillPath": "skills/.curated/vitest/SKILL.md",
+      "computedHash": "2432cb7f9099423fb3768a925fa95d7f8a6dc56c76eaded47472f558bff7139e"
+    },
+    "web-design-guidelines": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/web-design-guidelines/SKILL.md",
+      "computedHash": "f3bc47f890f42a44db1007ab390709ec368e4b8c089baee6b0007182236ac474"
+    }
+  }
+}
